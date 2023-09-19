@@ -44,15 +44,15 @@
                         android:layout_margin="@dimen/margin_normal"
                         android:background="?android:attr/selectableItemBackgroundBorderless"
                         android:clickable="true"
-                        android:focusable="true"
                         android:contentDescription="@string/skip_to_previous"
+                        android:focusable="true"
                         android:onClick="@{() -> viewModel.skipToPrevious()}"
                         android:src="@drawable/ic_skip_previous_white"
                         app:layout_constraintBottom_toBottomOf="@id/details_pause_play"
                         app:layout_constraintHorizontal_chainStyle="packed"
                         app:layout_constraintLeft_toLeftOf="@id/left_gutter"
                         app:layout_constraintRight_toLeftOf="@id/rewind_button"
-                        app:layout_constraintTop_toTopOf="@id/details_pause_play"/>
+                        app:layout_constraintTop_toTopOf="@id/details_pause_play" />
 
                     <ImageView
                         android:id="@+id/rewind_button"
@@ -129,12 +129,13 @@
                         android:text="@{viewModel.playbackSpeedString}"
                         android:textAllCaps="false"
                         android:textColor="@color/icon"
-                        android:textSize="16sp"
+                        android:textSize="24sp"
                         android:textStyle="bold"
                         app:layout_constraintBottom_toBottomOf="@+id/sleep_timer_button"
                         app:layout_constraintEnd_toStartOf="@+id/sleep_timer_button"
                         app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="@+id/sleep_timer_button" />
+                        app:layout_constraintTop_toTopOf="@+id/sleep_timer_button"
+                        tools:ignore="SpeakableTextPresentCheck" />
 
                     <ImageView
                         android:id="@+id/sleep_timer_button"
@@ -171,7 +172,8 @@
                         app:thumbRadius="8dp"
                         app:trackColorActive="@color/progressTintColor"
                         app:trackColorInactive="@color/progressTrackTintColor"
-                        app:trackHeight="3dp" />
+                        app:trackHeight="3dp"
+                        tools:ignore="SpeakableTextPresentCheck" />
 
                     <TextView
                         android:id="@+id/progress"
@@ -221,14 +223,14 @@
                         style="@style/TextAppearance.Body1"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/margin_normal"
+                        android:layout_marginTop="@dimen/margin_small"
                         android:lines="1"
                         android:text="@{viewModel.currentChapter.title.isEmpty() ? viewModel.currentTrack.title : viewModel.currentChapter.title}"
                         android:textAlignment="center"
                         app:layout_constraintLeft_toLeftOf="@id/left_gutter"
                         app:layout_constraintRight_toRightOf="@id/right_gutter"
                         app:layout_constraintTop_toBottomOf="@id/chapter_progress"
-                        app:layout_goneMarginTop="@dimen/margin_normal"
+                        app:layout_goneMarginTop="@dimen/margin_small"
                         tools:text="Book title but it's very long so it overflows past the edge of the screen" />
 
                     <TextView
@@ -237,7 +239,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:lines="1"
-                        android:text="@{viewModel.audiobook.title}"
+                        android:text="@{viewModel.currentTrack.title}"
                         android:textAlignment="center"
                         app:layout_constraintLeft_toLeftOf="@id/left_gutter"
                         app:layout_constraintRight_toRightOf="@id/right_gutter"
@@ -252,8 +254,37 @@
                         android:layout_marginTop="56dp"
                         android:padding="@dimen/margin_normal"
                         android:text="@string/chapters"
-                        app:layout_constraintLeft_toLeftOf="parent"
+                        app:layout_constraintStart_toEndOf="@id/left_gutter"
+                        app:layout_constraintEnd_toStartOf="@id/right_gutter"
                         app:layout_constraintTop_toBottomOf="@id/details_pause_play" />
+
+<!--                    <TextView-->
+<!--                        android:id="@+id/current_chapter"-->
+<!--                        style="@style/TextAppearance.Title"-->
+<!--                        android:layout_width="wrap_content"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:layout_marginTop="56dp"-->
+<!--                        android:padding="@dimen/margin_normal"-->
+<!--                        android:text="Current"-->
+<!--                        android:clickable="true"-->
+<!--                        android:onClick="@{() -> viewModel.goToCurrentChapter() }"-->
+<!--                        app:layout_constraintLeft_toRightOf="@id/chapter_title"-->
+<!--                        app:layout_constraintEnd_toStartOf="@id/collapse_chapter"-->
+<!--                        app:layout_constraintTop_toBottomOf="@id/details_pause_play" />-->
+
+<!--                    <TextView-->
+<!--                        android:id="@+id/collapse_chapter"-->
+<!--                        style="@style/TextAppearance.Title"-->
+<!--                        android:layout_width="wrap_content"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:layout_marginTop="56dp"-->
+<!--                        android:padding="@dimen/margin_normal"-->
+<!--                        android:text="Collapse"-->
+<!--                        android:clickable="true"-->
+<!--                        android:onClick="@{() -> viewModel.collapseAll() }"-->
+<!--                        app:layout_constraintLeft_toRightOf="@id/current_chapter"-->
+<!--                        app:layout_constraintEnd_toStartOf="@id/right_gutter"-->
+<!--                        app:layout_constraintTop_toBottomOf="@id/details_pause_play" />-->
 
                     <androidx.constraintlayout.widget.Guideline
                         android:id="@+id/left_gutter"
@@ -269,10 +300,11 @@
                         android:orientation="vertical"
                         app:layout_constraintGuide_end="@dimen/screen_horizontal_padding" />
 
+                    <!--                        srcRounded="@{viewModel.audiobook.thumb}"-->
                     <com.facebook.drawee.view.SimpleDraweeView
                         android:id="@+id/details_artwork"
                         serverConnected="@{plexConfig.isConnected()}"
-                        srcRounded="@{viewModel.audiobook.thumb}"
+                        srcRounded="@{viewModel.currentTrack.thumb == null ? viewModel.audiobook.thumb : viewModel.currentTrack.thumb}"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginLeft="@dimen/margin_large"
@@ -289,6 +321,25 @@
                         tools:src="@drawable/example_cover" />
 
                     <TextView
+                        android:id="@+id/sleep_timer_start"
+                        style="@style/TextAppearance.SleepTimerCountdown"
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:background="@color/sleepTimerCountdownOverlayColor"
+                        android:gravity="center"
+                        android:onClick="@{() -> viewModel.jumpToSleepTimerStart() }"
+                        android:text="@{viewModel.sleepTimerStartTimeString}"
+                        android:textColor="#FF9800"
+                        android:visibility="@{viewModel.isSleepTimerStartActive ? View.VISIBLE : View.GONE}"
+                        app:layout_constraintStart_toStartOf="@+id/details_artwork"
+                        app:layout_constraintEnd_toEndOf="@+id/details_artwork"
+                        app:layout_constraintTop_toTopOf="@+id/details_artwork"
+                        app:layout_constraintBottom_toTopOf="@+id/sleep_timer_countdown"
+                        app:layout_constraintBottom_toBottomOf="@+id/details_artwork"
+                        app:viewAspectRatio="1"
+                        tools:text="30:30" />
+
+                    <TextView
                         android:id="@+id/sleep_timer_countdown"
                         style="@style/TextAppearance.SleepTimerCountdown"
                         android:layout_width="0dp"
@@ -297,10 +348,10 @@
                         android:gravity="center"
                         android:text="@{viewModel.sleepTimerTimeRemainingString}"
                         android:visibility="@{viewModel.isSleepTimerActive() ? View.VISIBLE : View.GONE}"
-                        app:layout_constraintBottom_toBottomOf="@+id/details_artwork"
-                        app:layout_constraintEnd_toEndOf="@+id/details_artwork"
                         app:layout_constraintStart_toStartOf="@+id/details_artwork"
-                        app:layout_constraintTop_toTopOf="@+id/details_artwork"
+                        app:layout_constraintEnd_toEndOf="@+id/details_artwork"
+                        app:layout_constraintTop_toBottomOf="@+id/sleep_timer_start"
+                        app:layout_constraintBottom_toBottomOf="@+id/details_artwork"
                         app:viewAspectRatio="1"
                         tools:text="59:59" />
 
@@ -333,7 +384,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
-            android:layout_marginTop="@dimen/margin_normal"
+            android:layout_marginTop="@dimen/margin_small"
             android:visibility="@{viewModel.isLoadingTracks() ? View.VISIBLE : View.GONE}"
             app:layout_behavior="@string/appbar_scrolling_view_behavior"
             app:layout_constraintTop_toTopOf="@id/tracks" />

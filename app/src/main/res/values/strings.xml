@@ -10,7 +10,6 @@
     <string name="not_connected">No network connection</string>
     <string name="tab_home">Home</string>
     <string name="tab_library">Library</string>
-    <string name="tab_collections">Collections</string>
     <string name="tab_settings">Settings</string>
 
     <!-- Login page -->
@@ -56,6 +55,7 @@
     <string name="sort_by_title">Title</string>
     <string name="sort_by_author">Author</string>
     <string name="sort_by_year">Year</string>
+    <string name="sort_by_random">Random</string>
     <string name="sort_by_release_date">Release date</string>
     <string name="sort_by_date_added">Date added</string>
     <string name="sort_by_rating">Rating</string>
@@ -67,6 +67,7 @@
     <string name="view_style_text_list">Text</string>
     <string name="view_style_cover_and_text_list">Details</string>
     <string name="hide_played_switch">Hide played audiobooks?</string>
+    <string name="group_by_series_switch">Group by series?</string>
 
     <!-- Book details-->
     <string name="audiobook_info">Audiobook info</string>
@@ -161,6 +162,8 @@
     <string name="playback_speed_2_0x">2.0x</string>
     <string name="playback_speed_max">3.0x</string>
 
+    <string name="current_chapter">Current chapter</string>
+
     <!-- Sleep timer-->
     <string name="sleep_timer">Sleep timer</string>
     <string name="sleep_timer_active_title">Sleep timer: %1$s remaining</string>
@@ -172,6 +175,7 @@
     <string name="sleep_timer_duration_90_minutes">90 minutes</string>
     <string name="sleep_timer_duration_120_minutes">120 minutes</string>
     <string name="sleep_timer_duration_end_of_chapter">End of chapter</string>
+    <string name="sleep_timer_duration_end_of_track">End of track</string>
     <string name="sleep_timer_append">+5 minutes</string>
     <string name="cancel">Cancel</string>
     <string name="sleep_timer_extended_message">Chronicle: Sleep timer extended</string>

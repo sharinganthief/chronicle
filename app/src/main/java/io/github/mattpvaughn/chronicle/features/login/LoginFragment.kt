@@ -64,7 +64,7 @@ class LoginFragment : Fragment() {
 
         loginViewModel.isLoading.observe(
             viewLifecycleOwner,
-            Observer { isLoading: Boolean ->
+            Observer { isLoading ->
                 if (isLoading) {
                     binding.loading.visibility = View.VISIBLE
                 } else {

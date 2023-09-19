@@ -215,7 +215,9 @@
                         android:layout_height="wrap_content"
                         android:padding="@dimen/margin_normal"
                         android:text="@string/chapters"
-                        app:layout_constraintLeft_toLeftOf="parent"
+
+                        app:layout_constraintStart_toEndOf="@id/left_gutter"
+                        app:layout_constraintEnd_toStartOf="@id/right_gutter"
                         app:layout_constraintTop_toBottomOf="@id/info_expand_summary" />
 
                     <ProgressBar

@@ -92,12 +92,22 @@ class AudiobookDetailsFragment : Fragment() {
         binding.lifecycleOwner = viewLifecycleOwner
         binding.plexConfig = plexConfig
 
+
+
         val adapter = ChapterListAdapter(object : TrackClickListener {
             override fun onClick(chapter: Chapter) {
                 Timber.i("Starting chapter with name: ${chapter.title}")
                 viewModel.jumpToChapter(offset = chapter.startTimeOffset, trackId = chapter.trackId)
             }
-        })
+        },
+            object : HeaderClickListener {
+                override fun onClick(sectionHeaderModel: ChapterListAdapter.SectionHeaderModel) {
+                    viewModel.toggleDisc.value = sectionHeaderModel.disc
+                }
+            }
+        )
+
+
         binding.tracks.adapter = adapter
 
         // TODO casting
@@ -156,6 +166,22 @@ class AudiobookDetailsFragment : Fragment() {
             )
         }
 
+        viewModel.toggleDisc.observe(viewLifecycleOwner) { hiddenDisc ->
+            adapter.toggleHiddenDisc( hiddenDisc )
+        }
+
+//        viewModel.collapseAll.observe(viewLifecycleOwner) { collapse ->
+//            if(collapse){
+//                adapter.toggleHiddenDisc( collapse )
+//            }
+//            viewModel.collapseAll.value = false;
+//
+//        }
+
+//        viewModel.hiddenDiscs.observe(viewLifecycleOwner) { hiddenDiscs ->
+//            adapter.updateCurrentHiddenDiscs( hiddenDiscs )
+//        }
+
         viewModel.forceSyncInProgress.observe(viewLifecycleOwner) { isSyncing ->
             val syncMenuItem = binding.detailsToolbar.menu.findItem(R.id.force_sync)
             val syncIcon = syncMenuItem.icon
@@ -171,6 +197,8 @@ class AudiobookDetailsFragment : Fragment() {
 
         return binding.root
     }
+
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

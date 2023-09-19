@@ -25,6 +25,9 @@ fun getBookDatabase(context: Context): BookDatabase {
                 BOOK_MIGRATION_5_6,
                 BOOK_MIGRATION_6_7,
                 BOOK_MIGRATION_7_8,
+                BOOK_MIGRATION_8_9,
+                BOOK_MIGRATION_9_10,
+                BOOK_MIGRATION_10_11
             ).build()
         }
     }
@@ -73,7 +76,25 @@ val BOOK_MIGRATION_7_8 = object : Migration(7, 8) {
     }
 }
 
-@Database(entities = [Audiobook::class], version = 8, exportSchema = false)
+val BOOK_MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE Audiobook ADD COLUMN titleDisplay TEXT NOT NULL DEFAULT ''")
+    }
+}
+
+val BOOK_MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE Audiobook ADD COLUMN titleSearch TEXT NOT NULL DEFAULT ''")
+    }
+}
+
+val BOOK_MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE Audiobook ADD COLUMN subTitle TEXT NOT NULL DEFAULT ''")
+    }
+}
+
+@Database(entities = [Audiobook::class], version = 11, exportSchema = false)
 abstract class BookDatabase : RoomDatabase() {
     abstract val bookDao: BookDao
 }
@@ -128,10 +149,10 @@ interface BookDao {
     @Query("UPDATE Audiobook SET duration = :duration, leafCount = :trackCount, progress = :progress WHERE id = :bookId")
     suspend fun updateTrackData(bookId: Int, progress: Long, duration: Long, trackCount: Int)
 
-    @Query("SELECT * FROM Audiobook WHERE isCached >= :offlineModeActive AND (title LIKE :query OR author LIKE :query)")
+    @Query("SELECT * FROM Audiobook WHERE isCached >= :offlineModeActive AND (titleSearch LIKE :query) ORDER BY titleSort ASC")
     fun search(query: String, offlineModeActive: Boolean): LiveData<List<Audiobook>>
 
-    @Query("SELECT * FROM Audiobook WHERE isCached >= :offlineModeActive AND (title LIKE :query OR author LIKE :query)")
+    @Query("SELECT * FROM Audiobook WHERE isCached >= :offlineModeActive AND (titleSearch LIKE :query) ORDER BY titleSort ASC")
     fun searchAsync(query: String, offlineModeActive: Boolean): List<Audiobook>
 
     @Query("DELETE FROM Audiobook")

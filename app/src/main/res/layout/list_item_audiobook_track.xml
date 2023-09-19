@@ -3,9 +3,12 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <data>
-
         <variable
             name="isActive"
+            type="Boolean" />
+
+        <variable
+            name="isVisible"
             type="Boolean" />
 
         <variable
@@ -43,11 +46,12 @@
                 style="@style/TextAppearance.Body2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:lines="1"
+                android:lines="2"
+                android:layout_gravity="start|center_vertical"
                 android:text="@{chapter.paddedIndex(2)}"
                 android:textAllCaps="true"
                 android:textColor="@{isActive ? @color/textActiveSecondary : @color/textSecondary}"
-                tools:text="01" />
+                tools:text="Something Very long that has to wrap to a second line cause long" />
 
             <!--            <ImageView-->
             <!--                android:layout_width="@dimen/track_list_item_indicator_size"-->
@@ -67,8 +71,8 @@
             android:layout_marginTop="@dimen/margin_normal"
             android:layout_marginEnd="@dimen/screen_horizontal_padding"
             android:layout_marginBottom="@dimen/margin_normal"
+            android:lines="2"
             android:ellipsize="end"
-            android:lines="1"
             android:text="@{chapter.title}"
             android:textColor="@{isActive ? @color/textActive : @color/textPrimary}"
             app:layout_constraintBottom_toBottomOf="parent"

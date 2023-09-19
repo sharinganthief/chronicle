@@ -1,20 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layout>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <data>
-
         <variable
             name="sectionHeader"
             type="io.github.mattpvaughn.chronicle.features.bookdetails.ChapterListAdapter.SectionHeaderModel" />
 
+        <variable
+            name="headerClickListener"
+            type="io.github.mattpvaughn.chronicle.features.bookdetails.HeaderClickListener" />
+
         <import type="android.view.View" />
     </data>
 
-    <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="@dimen/track_list_item_height"
         android:paddingStart="@dimen/screen_horizontal_padding"
-        android:paddingEnd="@dimen/screen_horizontal_padding">
+        android:paddingEnd="@dimen/screen_horizontal_padding"
+        android:onClick="@{() -> headerClickListener.onClick(sectionHeader)}">
 
         <androidx.appcompat.widget.AppCompatTextView
             android:id="@+id/disc_number"
@@ -22,7 +27,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="start|center_vertical"
-            android:text="@{sectionHeader.text}" />
+            android:lines="2"
+            android:textStyle="italic"
+            android:text="@{sectionHeader.text}"
+            tools:text="Something Very long that has to wrap to a second line cause long" />
 
     </FrameLayout>
 </layout>

@@ -266,6 +266,65 @@ class QuintLiveDataAsync<T, K, S, Q, P, R>(
         throw UnsupportedOperationException()
 }
 
+class SextLiveDataAsync<T, K, S, Q, P, R, U>(
+    private val scope: CoroutineScope,
+    source1: LiveData<T>,
+    source2: LiveData<K>,
+    source3: LiveData<S>,
+    source4: LiveData<Q>,
+    source5: LiveData<P>,
+    source6: LiveData<U>,
+    private val combine: suspend (data1: T?, data2: K?, data3: S?, data4: Q?, data5: P?, data6: U?) -> R
+) : MediatorLiveData<R>() {
+
+    private var data1: T? = null
+    private var data2: K? = null
+    private var data3: S? = null
+    private var data4: Q? = null
+    private var data5: P? = null
+    private var data6: U? = null
+
+    init {
+        super.addSource(source1) {
+            data1 = it
+            computeValue()
+        }
+        super.addSource(source2) {
+            data2 = it
+            computeValue()
+        }
+        super.addSource(source3) {
+            data3 = it
+            computeValue()
+        }
+        super.addSource(source4) {
+            data4 = it
+            computeValue()
+        }
+        super.addSource(source5) {
+            data5 = it
+            computeValue()
+        }
+
+        super.addSource(source6) {
+            data6 = it
+            computeValue()
+        }
+    }
+
+    private fun computeValue() {
+        scope.launch {
+            value = withContext(Dispatchers.IO) { combine(data1, data2, data3, data4, data5, data6) }
+        }
+    }
+
+    override fun <T : Any?> addSource(source: LiveData<T>, onChanged: Observer<in T>): Unit =
+        throw UnsupportedOperationException()
+
+    override fun <T : Any?> removeSource(toRemote: LiveData<T>): Unit =
+        throw UnsupportedOperationException()
+}
+
 /**
  * [MediatorLiveData] implementation for in-place declaration of arbitrary number of [LiveData].
  *

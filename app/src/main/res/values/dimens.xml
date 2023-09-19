@@ -9,7 +9,7 @@
     <dimen name="spacing_micro">4dp</dimen>
 
     <!-- RecyclerView list item defaults -->
-    <dimen name="list_icon_size">32dp</dimen>
+    <dimen name="list_icon_size">48dp</dimen>
     <dimen name="list_item_height">56dp</dimen>
     <dimen name="keyline_x_offset">64dp</dimen>
 
@@ -53,7 +53,10 @@
     <dimen name="chapter_indent">24dp</dimen>
 
     <!--  Currently playing screen -->
-    <dimen name="currently_playing_artwork_max_size">302dp</dimen>
+    <dimen name="currently_playing_artwork_max_size">240dp</dimen>
+    <dimen name="currently_playing_artwork_half_size">120dp</dimen>
+    <dimen name="currently_playing_artwork_margin_top">60dp</dimen>
+    <dimen name="currently_playing_artwork_margin_bottom">60dp</dimen>
     <dimen name="currently_playing_seekbar_margin_top">16dp</dimen>
 
     <!-- Device dependent -->

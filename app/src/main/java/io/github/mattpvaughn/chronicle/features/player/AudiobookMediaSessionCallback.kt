@@ -12,9 +12,10 @@ import androidx.lifecycle.Observer
 import com.github.michaelbull.result.Ok
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.Player
+import com.google.android.exoplayer2.SimpleExoPlayer
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
-import com.google.android.exoplayer2.upstream.DefaultDataSource
-import com.google.android.exoplayer2.upstream.DefaultHttpDataSource
+import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory
+import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory
 import io.github.mattpvaughn.chronicle.BuildConfig
 import io.github.mattpvaughn.chronicle.application.Injector
 import io.github.mattpvaughn.chronicle.application.MILLIS_PER_SECOND
@@ -43,7 +44,7 @@ class AudiobookMediaSessionCallback @Inject constructor(
     private val prefsRepo: PrefsRepo,
     private val plexConfig: PlexConfig,
     private val mediaController: MediaControllerCompat,
-    private val dataSourceFactory: DefaultHttpDataSource.Factory,
+    private val dataSourceFactory: DefaultHttpDataSourceFactory,
     private val trackRepository: ITrackRepository,
     private val bookRepository: IBookRepository,
     private val serviceScope: CoroutineScope,
@@ -55,7 +56,7 @@ class AudiobookMediaSessionCallback @Inject constructor(
     private val appContext: Context,
     private val currentlyPlaying: CurrentlyPlaying,
     private val progressUpdater: ProgressUpdater,
-    defaultPlayer: ExoPlayer
+    defaultPlayer: SimpleExoPlayer
 ) : MediaSessionCompat.Callback() {
 
     // Default to ExoPlayer to prevent having a nullable field
@@ -259,7 +260,7 @@ class AudiobookMediaSessionCallback @Inject constructor(
                 return@launch
             }
 
-            Timber.i("Tracks: $tracks")
+//            Timber.i("Tracks: $tracks")
 
             trackListStateManager.trackList = tracks
             val metadataList = buildPlaylist(tracks, plexConfig)
@@ -304,16 +305,14 @@ class AudiobookMediaSessionCallback @Inject constructor(
 
             // Refresh auth token in [dataSourceFactory] in case the server has changed without
             // the service being recreated
-            dataSourceFactory.setDefaultRequestProperties(
-                mapOf(
-                    "X-Plex-Token" to (
-                        plexPrefsRepo.server?.accessToken
-                            ?: plexPrefsRepo.user?.authToken
-                            ?: plexPrefsRepo.accountAuthToken
-                        )
-                )
+            val props = dataSourceFactory.defaultRequestProperties
+            props.set(
+                "X-Plex-Token",
+                plexPrefsRepo.server?.accessToken
+                    ?: plexPrefsRepo.user?.authToken
+                    ?: plexPrefsRepo.accountAuthToken
             )
-            val factory = DefaultDataSource.Factory(appContext, dataSourceFactory)
+            val factory = DefaultDataSourceFactory(appContext, dataSourceFactory)
             when (player) {
                 is ExoPlayer -> {
                     val mediaSource = metadataList.toMediaSource(plexPrefsRepo, factory)

@@ -67,7 +67,7 @@ class AudiobookDetailsViewModel(
         private val currentlyPlaying: CurrentlyPlaying
     ) : ViewModelProvider.Factory {
         lateinit var inputAudiobook: Audiobook
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        override fun <T : ViewModel?> create(modelClass: Class<T>): T {
             check(this::inputAudiobook.isInitialized) { "Input audiobook not provided!" }
             if (modelClass.isAssignableFrom(AudiobookDetailsViewModel::class.java)) {
                 return AudiobookDetailsViewModel(
@@ -87,6 +87,10 @@ class AudiobookDetailsViewModel(
             }
         }
     }
+
+//    val hiddenDiscs: MutableLiveData<List<Int>> = MutableLiveData<List<Int>>(mutableListOf<Int>())
+    val toggleDisc = MutableLiveData<Int>()
+    val collapseAll = MutableLiveData<Boolean>()
 
     val audiobook: LiveData<Audiobook?> = bookRepository.getAudiobook(inputAudiobook.id)
     val tracks = trackRepository.getTracksForAudiobook(inputAudiobook.id)
@@ -129,7 +133,7 @@ class AudiobookDetailsViewModel(
         }
     }
 
-    val cacheIconTint = cacheStatus.map { status ->
+    val cacheIconTint = Transformations.map(cacheStatus) { status ->
         return@map when (status) {
             CACHING -> R.color.icon // Doesn't matter, we show a spinner over it
             NOT_CACHED -> R.color.icon
@@ -138,7 +142,7 @@ class AudiobookDetailsViewModel(
         }
     }
 
-    val cacheIconDrawable: LiveData<Int> = cacheStatus.map { status ->
+    val cacheIconDrawable: LiveData<Int> = Transformations.map(cacheStatus) { status ->
         return@map when (status) {
             CACHING -> R.drawable.ic_cloud_download_white // Doesn't matter, we show a spinner over it
             NOT_CACHED -> R.drawable.ic_cloud_download_white
@@ -166,7 +170,7 @@ class AudiobookDetailsViewModel(
             return@DoubleLiveData isBookActive ?: false && currState?.isPlaying ?: false
         }
 
-    val progressString = tracks.map { tracks: List<MediaItemTrack> ->
+    val progressString = Transformations.map(tracks) { tracks: List<MediaItemTrack> ->
         if (tracks.isEmpty()) {
             return@map "0:00/0:00"
         }
@@ -175,7 +179,7 @@ class AudiobookDetailsViewModel(
         return@map "$progressStr/$durationStr"
     }
 
-    val progressPercentageString = tracks.map { tracks: List<MediaItemTrack> ->
+    val progressPercentageString = Transformations.map(tracks) { tracks: List<MediaItemTrack> ->
         return@map "${tracks.getProgressPercentage()}%"
     }
 
@@ -194,7 +198,7 @@ class AudiobookDetailsViewModel(
     val summaryLinesShown: LiveData<Int>
         get() = _summaryLinesShown
 
-    val isAudioLoading = mediaServiceConnection.playbackState.map { state ->
+    val isAudioLoading = Transformations.map(mediaServiceConnection.playbackState) { state ->
         if (state.state == PlaybackStateCompat.STATE_ERROR) {
             Timber.i("Playback state: ${state.stateName}, (${state.errorMessage})")
         } else {
@@ -203,15 +207,15 @@ class AudiobookDetailsViewModel(
         state.state == STATE_BUFFERING || state.state == STATE_CONNECTING
     }
 
-    val showSummary = audiobook.map { book ->
+    val showSummary = Transformations.map(audiobook) { book ->
         book?.summary?.isNotEmpty() ?: false
     }
 
-    val isExpanded = summaryLinesShown.map { lines ->
+    val isExpanded = Transformations.map(summaryLinesShown) { lines ->
         return@map lines == lineCountSummaryMaximized
     }
 
-    val serverConnection = plexConfig.connectionState.map { it }
+    val serverConnection = Transformations.map(plexConfig.connectionState) { it }
 
     fun onToggleSummaryView() {
         _summaryLinesShown.value =
@@ -235,8 +239,8 @@ class AudiobookDetailsViewModel(
         chapters,
         tracks
     ) { _chapters: List<Chapter>?, _tracks: List<MediaItemTrack>? ->
-        Timber.i("Cached chapters: $_chapters")
-        Timber.i("Cached progress: ${_tracks?.getProgress()}")
+//        Timber.i("Cached chapters: $_chapters")
+//        Timber.i("Cached progress: ${_tracks?.getProgress()}")
 
         if (_tracks != null && _chapters != null) {
             var offsetRemaining = _tracks.getProgress()
@@ -256,7 +260,7 @@ class AudiobookDetailsViewModel(
 
     val activeChapter = currentlyPlaying.chapter.combine(cachedChapter) { activeChapter: Chapter, cachedChapter: Chapter ->
         Timber.i("Cached: $cachedChapter, active: $activeChapter")
-        if (activeChapter != EMPTY_CHAPTER && activeChapter.trackId == cachedChapter.trackId) {
+        if (activeChapter != EMPTY_CHAPTER && activeChapter.bookId == cachedChapter.bookId) {
             activeChapter
         } else {
             cachedChapter

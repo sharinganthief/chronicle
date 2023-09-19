@@ -3,6 +3,7 @@
     <string name="key_sort_by_title">title</string>
     <string name="key_sort_by_author">author</string>
     <string name="key_sort_by_year">year</string>
+    <string name="key_sort_by_random">random</string>
     <string name="key_sort_by_release_date">release_date</string>
     <string name="key_sort_by_date_added">date_added</string>
     <string name="key_sort_by_rating">rating</string>

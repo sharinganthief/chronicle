@@ -1,15 +1,21 @@
 package io.github.mattpvaughn.chronicle.data.local
 
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.map
 import io.github.mattpvaughn.chronicle.BuildConfig
 import io.github.mattpvaughn.chronicle.data.model.*
 import io.github.mattpvaughn.chronicle.data.sources.MediaSource
 import io.github.mattpvaughn.chronicle.data.sources.plex.PlexMediaService
 import io.github.mattpvaughn.chronicle.data.sources.plex.PlexPrefsRepo
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.asAudiobooks
+import io.github.mattpvaughn.chronicle.data.sources.plex.model.asTrackList
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.getDuration
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.toChapter
+import io.github.mattpvaughn.chronicle.features.player.displaySubtitle
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
@@ -142,7 +148,8 @@ class BookRepository @Inject constructor(
     private val bookDao: BookDao,
     private val prefsRepo: PrefsRepo,
     private val plexPrefsRepo: PlexPrefsRepo,
-    private val plexMediaService: PlexMediaService
+    private val plexMediaService: PlexMediaService,
+    private val trackRepository: ITrackRepository
 ) : IBookRepository {
 
     /** TODO: observe prefsRepo.offlineMode? */
@@ -183,6 +190,15 @@ class BookRepository @Inject constructor(
 
         val mergedBooks = networkBooks.map { networkBook ->
             val localBook = localBooks.find { it.id == networkBook.id }
+
+//            val localHasChaps = localBook != null && !localBook.chapters.isEmpty();
+//
+//            if(!localHasChaps && networkBook.chapters.isEmpty()){
+//                    val updatedTracks =
+//                        trackRepository.syncTracksInBook(networkBook.id, forceUseNetwork = true)
+//                    networkBook.chapters = PullNetworkChapters(networkBook, updatedTracks)
+//            }
+
             if (localBook != null) {
                 // [Audiobook.merge] chooses fields depending on [Audiobook.lastViewedAt]
                 return@map Audiobook.merge(network = networkBook, local = localBook)
@@ -242,6 +258,16 @@ class BookRepository @Inject constructor(
 
         val mergedBooks = networkBooks.map { networkBook ->
             val localBook = localBooks.find { it.id == networkBook.id }
+
+//            val localHasChaps = localBook != null && !localBook.chapters.isEmpty();
+//
+//            if(!localHasChaps && networkBook.chapters.isEmpty()){
+//                val updatedTracks = plexMediaService.retrieveTracksForAlbum(networkBook.id)
+//                    .plexMediaContainer
+//                    .asTrackList()
+//                networkBook.chapters = PullNetworkChapters(networkBook, updatedTracks)
+//            }
+
             if (localBook != null) {
                 // [Audiobook.merge] chooses fields depending on [Audiobook.lastViewedAt]
                 return@map Audiobook.merge(network = networkBook, local = localBook)
@@ -298,7 +324,9 @@ class BookRepository @Inject constructor(
     }
 
     override fun getRecentlyListened(): LiveData<List<Audiobook>> {
-        return bookDao.getRecentlyListened(limitReturnCount, prefsRepo.offlineMode)
+        val recentlyListened = bookDao.getRecentlyListened(limitReturnCount, prefsRepo.offlineMode)
+
+        return recentlyListened;
     }
 
     override suspend fun getRecentlyListenedAsync(): List<Audiobook> {
@@ -402,35 +430,44 @@ class BookRepository @Inject constructor(
         }
     }
 
+    private suspend fun PullNetworkChapters(audiobook: Audiobook,
+                                    tracks: List<MediaItemTrack>): List<Chapter>{
+        val chapters: List<Chapter> =
+            tracks.flatMap { track ->
+                val networkChapters = plexMediaService.retrieveChapterInfo(track.id)
+                    .plexMediaContainer.metadata.firstOrNull()?.plexChapters
+                if (BuildConfig.DEBUG) {
+                    // prevent networkChapters from toString()ing and being slow even if timber
+                    // tree isn't attached in the release build
+                    Timber.i("Network chapters: $networkChapters")
+                }
+                // If no chapters for this track, make a chapter from the current track
+                networkChapters?.map { plexChapter ->
+                    plexChapter.toChapter(
+                        track.id.toLong(),
+                        track.discNumber,
+                        audiobook.isCached
+                    )
+                }.takeIf { !it.isNullOrEmpty() } ?: listOf(track.asChapter(0L))
+            }.sorted()
+
+        return chapters
+    }
+
     override suspend fun syncAudiobook(
         audiobook: Audiobook,
         tracks: List<MediaItemTrack>,
         forceNetwork: Boolean,
     ): Boolean {
-        Timber.i(
-            "Loading chapter data. Book ID is ${audiobook.id}, it is ${
-            if (audiobook.isCached) "cached" else "uncached"
-            }, tracks are $tracks"
-        )
+//        Timber.i(
+//            "Loading chapter data. Book ID is ${audiobook.id}, it is ${
+//            if (audiobook.isCached) "cached" else "uncached"
+//            }, tracks are $tracks"
+//        )
         withContext(Dispatchers.IO) {
-            val chapters: List<Chapter> = try {
-                tracks.flatMap { track ->
-                    val networkChapters = plexMediaService.retrieveChapterInfo(track.id)
-                        .plexMediaContainer.metadata.firstOrNull()?.plexChapters
-                    if (BuildConfig.DEBUG) {
-                        // prevent networkChapters from toString()ing and being slow even if timber
-                        // tree isn't attached in the release build
-                        Timber.i("Network chapters: $networkChapters")
-                    }
-                    // If no chapters for this track, make a chapter from the current track
-                    networkChapters?.map { plexChapter ->
-                        plexChapter.toChapter(
-                            track.id.toLong(),
-                            track.discNumber,
-                            audiobook.isCached
-                        )
-                    }.takeIf { !it.isNullOrEmpty() } ?: listOf(track.asChapter(0L))
-                }.sorted()
+            val chapters: List<Chapter>
+            try {
+                chapters = PullNetworkChapters(audiobook, tracks)
             } catch (t: Throwable) {
                 Timber.e("Failed to load chapters: $t")
                 return@withContext false
@@ -455,6 +492,7 @@ class BookRepository @Inject constructor(
                 duration = tracks.getDuration(),
                 chapters = chapters
             )
+
             bookDao.update(merged)
         }
         return true
@@ -467,3 +505,4 @@ class BookRepository @Inject constructor(
             .firstOrNull()
     }
 }
+

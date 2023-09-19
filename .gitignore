@@ -8,9 +8,6 @@ captures/
 bin/
 gen/
 target/
-app/freeAsInBeer
-app/googlePlay
-app/release
 
 # android studio files
 .idea/

@@ -273,7 +273,7 @@ class CachedFileManager @Inject constructor(
                 // Handle the various downloaded statuses
                 Timber.i("Group change for book with id $groupId: ${fetchGroup.downloads.size} tracks downloaded")
                 val downloads = fetchGroup.downloads
-                Timber.i(downloads.joinToString { it.status.toString() })
+                //Timber.i(downloads.joinToString { it.status.toString() })
                 activeDownloads.remove(groupId)
                 val downloadSuccess =
                     downloads.all { it.error == Error.NONE } && downloads.isNotEmpty()

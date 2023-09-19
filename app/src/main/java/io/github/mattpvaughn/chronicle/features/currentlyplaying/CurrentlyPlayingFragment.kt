@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import android.widget.Toast.LENGTH_SHORT
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
@@ -19,6 +20,7 @@ import io.github.mattpvaughn.chronicle.data.model.Chapter
 import io.github.mattpvaughn.chronicle.data.sources.plex.PlexConfig
 import io.github.mattpvaughn.chronicle.databinding.FragmentCurrentlyPlayingBinding
 import io.github.mattpvaughn.chronicle.features.bookdetails.ChapterListAdapter
+import io.github.mattpvaughn.chronicle.features.bookdetails.HeaderClickListener
 import io.github.mattpvaughn.chronicle.features.bookdetails.TrackClickListener
 import io.github.mattpvaughn.chronicle.features.player.SleepTimer
 import io.github.mattpvaughn.chronicle.util.observeEvent
@@ -89,7 +91,13 @@ class CurrentlyPlayingFragment : Fragment() {
             override fun onClick(chapter: Chapter) {
                 viewModel.jumpToChapter(chapter.startTimeOffset, chapter.trackId.toInt())
             }
-        })
+        },
+            object : HeaderClickListener {
+                override fun onClick(sectionHeaderModel: ChapterListAdapter.SectionHeaderModel) {
+                    viewModel.toggleDisc.value = sectionHeaderModel.disc
+                }
+            }
+        )
 
         binding.chapterProgressSeekbar.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
             override fun onStartTrackingTouch(slider: Slider) {
@@ -116,6 +124,13 @@ class CurrentlyPlayingFragment : Fragment() {
                 discNumber = chapter.discNumber,
                 chapterIndex = chapter.index
             )
+        }
+
+//        viewModel.hiddenDiscs.observe(viewLifecycleOwner) { hiddenDiscs ->
+//            adapter.updateCurrentHiddenDiscs( hiddenDiscs )
+//        }
+        viewModel.toggleDisc.observe(viewLifecycleOwner) { hiddenDisc ->
+            adapter.toggleHiddenDisc( hiddenDisc )
         }
 
         binding.tracks.adapter = adapter

@@ -25,6 +25,9 @@ data class Audiobook constructor(
     /** Unique long representing a [MediaSource] in [SourceManager] */
     val source: Long,
     val title: String = "",
+    var titleDisplay: String = "",
+    var subTitle: String = "",
+    var titleSearch: String = "",
     val titleSort: String = "",
     val author: String = "",
     val thumb: String = "",
@@ -59,6 +62,9 @@ data class Audiobook constructor(
             id = dir.ratingKey.toInt(),
             source = PlexMediaSource.MEDIA_SOURCE_ID_PLEX,
             title = dir.title,
+            titleDisplay = dir.title,
+            subTitle = "",
+            titleSearch = getTitleSearch(dir.title, dir.parentTitle),
             titleSort = dir.titleSort.takeIf { it.isNotEmpty() } ?: dir.title,
             author = dir.parentTitle,
             thumb = dir.thumb,
@@ -73,6 +79,28 @@ data class Audiobook constructor(
             leafCount = dir.leafCount,
             viewCount = dir.viewCount,
         )
+
+        private fun getTitleSearch(bookTitle: String, author: String): String {
+            return ("$bookTitle $author").replace("[^A-Za-z0-9 ]".toRegex(), "").lowercase();
+        }
+
+        private fun getDisplayTitle(bookTitle: String): String {
+            val regex = Regex("(.*?)\\s\\-\\s(Books?\\s[\\d|\\.|\\-|\\s]*)\\s\\-\\s(.*)");
+            var matchResult = regex.find(bookTitle);
+            if (matchResult == null || matchResult!!.groupValues.size <= 1) {
+                return bookTitle
+            }
+
+            var seriesName = matchResult!!.groupValues[1];
+            var bookNum = matchResult!!.groupValues[2];
+            var bookTitle = matchResult!!.groupValues[3];
+
+            if (seriesName.isNullOrEmpty() || bookNum.isNullOrEmpty() || bookTitle.isNullOrEmpty()) {
+                return "";
+            }
+
+            return  seriesName + System.lineSeparator() + bookNum.replace("Book ", "");
+        }
 
         /**
          * Merges updated local fields with a network copy of the book. Respects network metadata
@@ -89,8 +117,11 @@ data class Audiobook constructor(
          * on the server.
          */
         fun merge(network: Audiobook, local: Audiobook, forceNetwork: Boolean = false): Audiobook {
-            return if (network.lastViewedAt > local.lastViewedAt || forceNetwork) {
-                network.copy(
+
+            var finalBook: Audiobook
+
+            if (network.lastViewedAt > local.lastViewedAt || forceNetwork) {
+                finalBook = network.copy(
                     duration = local.duration,
                     progress = local.progress,
                     isCached = local.isCached,
@@ -99,7 +130,7 @@ data class Audiobook constructor(
                     source = local.source,
                 )
             } else {
-                network.copy(
+                finalBook = network.copy(
                     duration = local.duration,
                     progress = local.progress,
                     source = local.source,
@@ -109,9 +140,68 @@ data class Audiobook constructor(
                     chapters = local.chapters,
                 )
             }
+
+            if (!finalBook.chapters.isNullOrEmpty()){
+                val firstChapter = finalBook.chapters.first();
+                val lastChapter = finalBook.chapters.last();
+
+                var discs = mutableListOf<Triple<String, String, String>>()
+
+                //if we have multiple discs
+                if (lastChapter.discNumber > firstChapter.discNumber) {
+
+                    val parsedFirst = parseDiscName(firstChapter.title);
+                    if(parsedFirst.third.length > 2)
+                        discs.add(parsedFirst)
+
+                    finalBook.chapters.fold(firstChapter) { prev, curr ->
+                        if(prev.discNumber < curr.discNumber){
+                            val parsed = parseDiscName(curr.title);
+                            if(parsed.third.length > 2)
+                                discs.add(parsed)
+                        }
+                        curr
+                    }
+
+                    val titles: List<String> = discs.map { it.third.lowercase() }
+//                    val nums: List<String> = discs.map { it.second }
+
+                    val allSearchTerms = mutableListOf(finalBook.title.lowercase(), finalBook.author.lowercase())
+                    allSearchTerms.addAll(titles);
+                    val uniqueSearchTerms = allSearchTerms.distinct()
+
+                    finalBook.titleSearch = uniqueSearchTerms.joinToString(" " ).replace("[^A-Za-z0-9 ]".toRegex(), "")
+//                    finalBook.subTitle = "${nums.first()} - ${nums.last()}"
+//                    finalBook.titleDisplay = finalBook.title + System.lineSeparator() + finalBook.subTitle
+                }
+            }
+
+            return finalBook;
+        }
+
+
+        private val regex = Regex("(.*?)\\s\\-\\sBooks?\\s([\\d|\\.|\\-|\\s]*)\\s\\-\\s(.*)")
+
+        private fun parseDiscName(title: String): Triple<String, String,String> {
+
+            var matchResult = regex.find(title);
+            if (matchResult == null || matchResult!!.groupValues.size <= 1) {
+                return Triple("", "", title);
+            }
+
+            var seriesName = matchResult!!.groupValues[1];
+            var bookNum = matchResult!!.groupValues[2];
+            var bookTitle = matchResult!!.groupValues[3];
+
+            if (seriesName.isNullOrEmpty() || bookNum.isNullOrEmpty() || bookTitle.isNullOrEmpty()) {
+                return Triple("", "", title);
+            }
+
+            return Triple(seriesName, bookNum, bookTitle);
         }
 
         const val SORT_KEY_TITLE = "title"
+        const val SORT_KEY_RANDOM = "random"
         const val SORT_KEY_AUTHOR = "author"
         const val SORT_KEY_GENRE = "title"
         const val SORT_KEY_RELEASE_DATE = "release_date"
@@ -125,6 +215,7 @@ data class Audiobook constructor(
 
         val SORT_KEYS = listOf(
             SORT_KEY_TITLE,
+//            SORT_KEY_RANDOM,
             SORT_KEY_AUTHOR,
             SORT_KEY_GENRE,
             SORT_KEY_RELEASE_DATE,
@@ -143,7 +234,8 @@ fun Audiobook.toAlbumMediaMetadata(): MediaMetadataCompat {
     val metadataBuilder = MediaMetadataCompat.Builder()
     metadataBuilder.id = this.id.toString()
     metadataBuilder.title = this.title
-    metadataBuilder.displayTitle = this.title
+    metadataBuilder.displayTitle = this.titleDisplay
+    metadataBuilder.displaySubtitle = this.subTitle
     metadataBuilder.albumArtUri = this.thumb
     metadataBuilder.album = this.title
     metadataBuilder.artist = this.author

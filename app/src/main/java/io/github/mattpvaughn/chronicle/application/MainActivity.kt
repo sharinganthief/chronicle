@@ -16,6 +16,7 @@ import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import com.tonyodev.fetch2.ACTION_TYPE_RESUME
 import io.github.mattpvaughn.chronicle.R
 import io.github.mattpvaughn.chronicle.application.MainActivityViewModel.BottomSheetState.COLLAPSED
 import io.github.mattpvaughn.chronicle.application.MainActivityViewModel.BottomSheetState.EXPANDED
@@ -41,6 +42,7 @@ import io.github.mattpvaughn.chronicle.util.observeEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.internal.wait
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -111,21 +113,15 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
         }
 
-        // TODO: show/hide this item on launch more performantly
-        viewModel.hasCollections.observe(this) {
-            binding.bottomNav.menu.findItem(R.id.nav_collections).isVisible = it
-        }
-
-        binding.bottomNav.setOnItemSelectedListener {
+        binding.bottomNav.setOnNavigationItemSelectedListener {
             when (it.itemId) {
                 R.id.nav_settings -> navigator.showSettings()
                 R.id.nav_library -> navigator.showLibrary()
-                R.id.nav_collections -> navigator.showCollections()
                 R.id.nav_home -> navigator.showHome()
                 else -> throw NoWhenBranchMatchedException("Unknown bottom tab id: ${it.itemId}")
             }
             viewModel.minimizeCurrentlyPlaying()
-            return@setOnItemSelectedListener true
+            return@setOnNavigationItemSelectedListener true
         }
 
         if (savedInstanceState == null) {
@@ -180,8 +176,8 @@ class MainActivity : AppCompatActivity() {
             this,
             object : GestureDetector.SimpleOnGestureListener() {
                 override fun onScroll(
-                    e1: MotionEvent,
-                    e2: MotionEvent,
+                    e1: MotionEvent?,
+                    e2: MotionEvent?,
                     distanceX: Float,
                     distanceY: Float
                 ): Boolean {
@@ -234,12 +230,17 @@ class MainActivity : AppCompatActivity() {
         val openAudiobookWithId = intent?.extras?.getInt(
             FLAG_OPEN_ACTIVITY_TO_AUDIOBOOK_WITH_ID, NO_AUDIOBOOK_FOUND_ID
         ) ?: NO_AUDIOBOOK_FOUND_ID
+
+        val forcePlay = intent?.extras?.getBoolean(FLAG_FORCE_PLAY_AUDIOBOOK) ?: false
         if (openAudiobookWithId != NO_AUDIOBOOK_FOUND_ID) {
             lifecycleScope.launch {
                 withContext(Dispatchers.IO) {
                     val audiobook = bookRepository.getAudiobookAsync(openAudiobookWithId)
                     if (audiobook != null && audiobook != EMPTY_AUDIOBOOK) {
-                        navigator.showDetails(audiobook.id, audiobook.title, audiobook.isCached)
+                        if(forcePlay) {
+                            viewModel.setAudiobook(audiobook.id, true);
+                        }
+                        //navigator.showDetails(audiobook.id, audiobook.title, audiobook.isCached)
                     }
                 }
             }
@@ -269,6 +270,7 @@ class MainActivity : AppCompatActivity() {
         const val FLAG_OPEN_ACTIVITY_TO_CURRENTLY_PLAYING = "OPEN_ACTIVITY_TO_AUDIOBOOK"
         const val REQUEST_CODE_OPEN_APP_TO_CURRENTLY_PLAYING = -12
         const val FLAG_OPEN_ACTIVITY_TO_AUDIOBOOK_WITH_ID = "OPEN_ACTIVITY_TO_AUDIOBOOK_WITH_ID"
+        const val FLAG_FORCE_PLAY_AUDIOBOOK = "FLAG_FORCE_PLAY_AUDIOBOOK"
 
         // add audiobook id to this number to avoid repeats
         const val REQUEST_CODE_PREFIX_OPEN_ACTIVITY_TO_AUDIOBOOK_WITH_ID = -1001110

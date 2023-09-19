@@ -2,14 +2,15 @@ package io.github.mattpvaughn.chronicle.features.library
 
 import android.content.SharedPreferences
 import android.text.format.Formatter
+import android.util.Log
 import androidx.lifecycle.*
 import io.github.mattpvaughn.chronicle.R
 import io.github.mattpvaughn.chronicle.application.Injector
 import io.github.mattpvaughn.chronicle.data.local.IBookRepository
 import io.github.mattpvaughn.chronicle.data.local.ITrackRepository
-import io.github.mattpvaughn.chronicle.data.local.LibrarySyncRepository
 import io.github.mattpvaughn.chronicle.data.local.PrefsRepo
 import io.github.mattpvaughn.chronicle.data.local.PrefsRepo.Companion.KEY_BOOK_SORT_BY
+import io.github.mattpvaughn.chronicle.data.local.PrefsRepo.Companion.KEY_GROUP_BY_SERIES
 import io.github.mattpvaughn.chronicle.data.local.PrefsRepo.Companion.KEY_HIDE_PLAYED_AUDIOBOOKS
 import io.github.mattpvaughn.chronicle.data.local.PrefsRepo.Companion.KEY_IS_LIBRARY_SORT_DESCENDING
 import io.github.mattpvaughn.chronicle.data.local.PrefsRepo.Companion.KEY_LIBRARY_VIEW_STYLE
@@ -20,18 +21,22 @@ import io.github.mattpvaughn.chronicle.data.model.Audiobook.Companion.SORT_KEY_D
 import io.github.mattpvaughn.chronicle.data.model.Audiobook.Companion.SORT_KEY_DATE_PLAYED
 import io.github.mattpvaughn.chronicle.data.model.Audiobook.Companion.SORT_KEY_DURATION
 import io.github.mattpvaughn.chronicle.data.model.Audiobook.Companion.SORT_KEY_PLAYS
+import io.github.mattpvaughn.chronicle.data.model.Audiobook.Companion.SORT_KEY_RANDOM
 import io.github.mattpvaughn.chronicle.data.model.Audiobook.Companion.SORT_KEY_TITLE
 import io.github.mattpvaughn.chronicle.data.model.Audiobook.Companion.SORT_KEY_YEAR
 import io.github.mattpvaughn.chronicle.data.model.MediaItemTrack
+import io.github.mattpvaughn.chronicle.data.model.getProgress
 import io.github.mattpvaughn.chronicle.data.sources.plex.ICachedFileManager
 import io.github.mattpvaughn.chronicle.data.sources.plex.ICachedFileManager.CacheStatus.CACHED
 import io.github.mattpvaughn.chronicle.data.sources.plex.ICachedFileManager.CacheStatus.NOT_CACHED
+import io.github.mattpvaughn.chronicle.data.sources.plex.model.getDuration
 import io.github.mattpvaughn.chronicle.util.*
 import io.github.mattpvaughn.chronicle.views.BottomSheetChooser
 import io.github.mattpvaughn.chronicle.views.BottomSheetChooser.BottomChooserListener
 import io.github.mattpvaughn.chronicle.views.BottomSheetChooser.BottomChooserState.Companion.EMPTY_BOTTOM_CHOOSER
 import io.github.mattpvaughn.chronicle.views.BottomSheetChooser.FormattableString
 import io.github.mattpvaughn.chronicle.views.BottomSheetChooser.FormattableString.ResourceString
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -41,7 +46,6 @@ class LibraryViewModel(
     private val trackRepository: ITrackRepository,
     private val prefsRepo: PrefsRepo,
     private val cachedFileManager: ICachedFileManager,
-    private val librarySyncRepository: LibrarySyncRepository,
     sharedPreferences: SharedPreferences
 ) : ViewModel() {
 
@@ -51,18 +55,16 @@ class LibraryViewModel(
         private val trackRepository: ITrackRepository,
         private val prefsRepo: PrefsRepo,
         private val cachedFileManager: ICachedFileManager,
-        private val librarySyncRepository: LibrarySyncRepository,
-        private val sharedPreferences: SharedPreferences,
+        private val sharedPreferences: SharedPreferences
     ) : ViewModelProvider.Factory {
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        override fun <T : ViewModel?> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(LibraryViewModel::class.java)) {
                 return LibraryViewModel(
                     bookRepository,
                     trackRepository,
                     prefsRepo,
                     cachedFileManager,
-                    librarySyncRepository,
-                    sharedPreferences,
+                    sharedPreferences
                 ) as T
             } else {
                 throw IllegalArgumentException("Cannot instantiate $modelClass from LibraryViewModel.Factory")
@@ -70,7 +72,9 @@ class LibraryViewModel(
         }
     }
 
-    val isRefreshing = librarySyncRepository.isRefreshing
+    var _isRefreshing = MutableLiveData<Boolean>()
+    val isRefreshing: LiveData<Boolean>
+        get() = _isRefreshing
 
     private var _isSearchActive = MutableLiveData<Boolean>()
     val isSearchActive: LiveData<Boolean>
@@ -98,6 +102,12 @@ class LibraryViewModel(
         sharedPreferences
     )
 
+    val groupBySeries = BooleanPreferenceLiveData(
+        KEY_GROUP_BY_SERIES,
+        false,
+        sharedPreferences
+    )
+
     private val sortKey =
         StringPreferenceLiveData(KEY_BOOK_SORT_BY, SORT_KEY_TITLE, sharedPreferences)
     val isOffline = BooleanPreferenceLiveData(KEY_OFFLINE_MODE, false, sharedPreferences)
@@ -105,27 +115,70 @@ class LibraryViewModel(
     private var prevBooks = emptyList<Audiobook>()
 
     private val allBooks = bookRepository.getAllBooks()
-    val books = QuintLiveDataAsync(
+    val books = SextLiveDataAsync(
         viewModelScope,
         allBooks,
         isSortDescending,
         sortKey,
         arePlayedAudiobooksHidden,
+        groupBySeries,
         isOffline
-    ) { _books, _isDescending, _sortKey, _hidePlayed, _isOffline ->
+    ) { _books, _isDescending, _sortKey, _hidePlayed, _groupBySeries, _isOffline ->
         if (_books.isNullOrEmpty()) {
-            return@QuintLiveDataAsync emptyList<Audiobook>()
+            return@SextLiveDataAsync emptyList<Audiobook>()
         }
 
         // Use defaults if provided null values
         val desc = _isDescending ?: true
         val key = _sortKey ?: SORT_KEY_TITLE
         val hidePlayed = _hidePlayed ?: false
+        val groupBySeries = _groupBySeries ?: false
         val offline = _isOffline ?: false
 
-        val results = _books.filter { (!offline || it.isCached && offline) && (!hidePlayed || hidePlayed && it.viewCount == 0L) }
-            .sortedWith(
-                Comparator { book1, book2 ->
+        val regex = Regex("(.*?)\\s\\-\\s(Books?\\s[\\d|\\.]*)\\s?\\-\\s?(.*)");
+
+        var filteredResults: MutableList<Audiobook> = mutableListOf();
+
+        var initialResults = _books.filter { (!offline || it.isCached && offline)
+                && (!hidePlayed || hidePlayed && it.viewCount == 0L) };
+
+        var debugTag = "phi";
+
+        Log.v(debugTag,"DEBUG - Initial Results Count - " + initialResults.size);
+
+        initialResults.forEach { b ->
+
+            if(groupBySeries){
+                val bookTitle = b.title;
+
+                var matchResult = regex.find(bookTitle);
+                if(matchResult != null && matchResult!!.groupValues.size > 1 ) {
+                    var seriesName = matchResult!!.groupValues[1];
+
+                    if(!seriesName.isNullOrEmpty() && !filteredResults.any { it.title.contains(seriesName) }){
+                        Log.v(debugTag,"DEBUG - Series - " +  seriesName);
+                        filteredResults.add(b);
+                    }
+                }
+                else {
+                    //no series match, just add
+                    filteredResults.add(b);
+                    Log.v(debugTag,"DEBUG - No Series Match - " +  b.title);
+                }
+            }
+            else{
+                filteredResults.add(b);
+            }
+        }
+
+        var results: List<Audiobook>;
+
+//        if(key == SORT_KEY_RANDOM){
+//            results = filteredResults.toList().shuffled();
+//        }
+//        else{
+            results = filteredResults
+                .sortedWith(Comparator { book1, book2 ->
                     val descMultiplier = if (desc) 1 else -1
                     return@Comparator descMultiplier * when (key) {
                         SORT_KEY_AUTHOR -> book1.author.compareTo(book2.author)
@@ -139,17 +192,18 @@ class LibraryViewModel(
                         SORT_KEY_YEAR -> book2.year.compareTo(book1.year)
                         else -> throw NoWhenBranchMatchedException("Unknown sort key: $key")
                     }
-                }
-            )
+                })
+//        }
+
 
         // If nothing has changed, return prevBooks
         if (prevBooks.map { it.id } == results.map { it.id }) {
-            return@QuintLiveDataAsync prevBooks
+            return@SextLiveDataAsync prevBooks
         }
 
         prevBooks = results
 
-        return@QuintLiveDataAsync results
+        return@SextLiveDataAsync results
     }
 
     private var _messageForUser = MutableLiveData<Event<String>>()
@@ -172,7 +226,7 @@ class LibraryViewModel(
     val tracks: LiveData<List<MediaItemTrack>>
         get() = _tracks
 
-    private val cacheStatus = tracks.map {
+    private val cacheStatus = Transformations.map(tracks) {
         when {
             it.isEmpty() -> NOT_CACHED
             it.all { track -> track.cached } -> CACHED
@@ -288,8 +342,40 @@ class LibraryViewModel(
         )
     }
 
+    /**
+     * Pull most recent data from server and update repositories.
+     *
+     * Update book info for fields where child tracks serve as source of truth, like how
+     * [Audiobook.duration] serves as a delegate for [List<MediaItemTrack>.getDuration()]
+     *
+     * TODO: maybe refresh data in the repository whenever a query is made? repeating code b/w
+     *       here and [HomeViewModel]
+     */
     fun refreshData() {
-        librarySyncRepository.refreshLibrary()
+        viewModelScope.launch(Injector.get().unhandledExceptionHandler()) {
+            try {
+                _isRefreshing.postValue(true)
+                bookRepository.refreshDataPaginated()
+                trackRepository.refreshDataPaginated()
+            } catch (e: Throwable) {
+                _messageForUser.postEvent("Failed to refresh data")
+            } finally {
+                _isRefreshing.postValue(false)
+            }
+
+            val audiobooks = bookRepository.getAllBooksAsync()
+            val tracks = trackRepository.getAllTracksAsync()
+            audiobooks.forEach { book ->
+                val tracksInAudiobook = tracks.filter { it.parentKey == book.id }
+                Timber.i("Book progress: ${tracksInAudiobook.getProgress()}")
+                bookRepository.updateTrackData(
+                    bookId = book.id,
+                    bookProgress = tracksInAudiobook.getProgress(),
+                    bookDuration = tracksInAudiobook.getDuration(),
+                    trackCount = tracksInAudiobook.size
+                )
+            }
+        }
     }
 
     /** Shows/hides the filter/sort/view menu to the user. Show if [isVisible] is true, hide otherwise */
@@ -309,4 +395,10 @@ class LibraryViewModel(
         Timber.i("toggleHidePlayedAudiobooks")
         prefsRepo.hidePlayedAudiobooks = !prefsRepo.hidePlayedAudiobooks
     }
+
+    fun toggleGroupBySeries() {
+        Timber.i("toggleGroupBySeries")
+        prefsRepo.groupBySeries = !prefsRepo.groupBySeries
+    }
+
 }

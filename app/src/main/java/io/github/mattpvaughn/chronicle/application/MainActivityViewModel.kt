@@ -148,7 +148,11 @@ class MainActivityViewModel(
         mediaServiceConnection.playbackState.observeForever(playbackObserver)
     }
 
-    private suspend fun setAudiobook(trackId: Int) {
+    suspend fun setAudiobook(trackId: Int) {
+        setAudiobook(trackId, false)
+    }
+
+    suspend fun setAudiobook(trackId: Int, play: Boolean) {
         val previousAudiobookId = audiobook.value?.id ?: NO_AUDIOBOOK_FOUND_ID
         viewModelScope.launch(Injector.get().unhandledExceptionHandler()) {
             val bookId = trackRepository.getBookIdForTrack(trackId)
@@ -157,6 +161,9 @@ class MainActivityViewModel(
                 audiobookId.postValue(bookId)
                 if (_currentlyPlayingLayoutState.value == HIDDEN) {
                     _currentlyPlayingLayoutState.postValue(COLLAPSED)
+                }
+                if(play){
+                    pausePlay(true)
                 }
             }
         }
@@ -176,19 +183,27 @@ class MainActivityViewModel(
     }
 
     fun pausePlayButtonClicked() {
+        pausePlayButtonClicked(false);
+    }
+
+    fun pausePlayButtonClicked(forcePlay: Boolean) {
         if (mediaServiceConnection.isConnected.value != true) {
             mediaServiceConnection.connect(this::pausePlay)
         } else {
-            pausePlay()
+            pausePlay(forcePlay)
         }
     }
 
     private fun pausePlay() {
+        pausePlay(false);
+    }
+
+    private fun pausePlay(forcePlay: Boolean) {
         // Require [mediaServiceConnection] is connected
         check(mediaServiceConnection.isConnected.value == true)
         val transportControls = mediaServiceConnection.transportControls
         mediaServiceConnection.playbackState.value?.let { playbackState ->
-            if (playbackState.isPlaying) {
+            if (!forcePlay && playbackState.isPlaying) {
                 Timber.i("Pausing!")
                 transportControls?.pause()
             } else {
@@ -197,6 +212,8 @@ class MainActivityViewModel(
             }
         }
     }
+
+
 
     override fun onCleared() {
         mediaServiceConnection.nowPlaying.removeObserver(metadataObserver)

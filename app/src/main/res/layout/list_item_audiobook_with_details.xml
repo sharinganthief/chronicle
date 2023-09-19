@@ -42,7 +42,7 @@
         <androidx.cardview.widget.CardView
             android:id="@+id/thumb_container"
             android:layout_width="@dimen/library_details_audiobook_height"
-            android:layout_height="0dp"
+            android:layout_height="@dimen/library_details_audiobook_height"
             android:layout_marginRight="@dimen/spacing_normal"
             app:cardCornerRadius="@dimen/audiobook_item_radius"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -83,8 +83,9 @@
                 srcRounded="@{audiobook.thumb}"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_gravity="bottom"
-                android:contentDescription="@{audiobook.title}"
+                android:maxLines="2"
+                android:layout_gravity="center"
+                android:contentDescription="@{audiobook.titleDisplay}"
                 tools:src="@drawable/book_cover_missing_placeholder" />
 
         </androidx.cardview.widget.CardView>
@@ -96,7 +97,8 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/spacing_normal"
             android:maxLines="2"
-            android:text="@{audiobook.title}"
+            android:layout_gravity="center"
+            android:text="@{audiobook.titleDisplay}"
             app:layout_constraintBottom_toTopOf="@id/author"
             app:layout_constraintLeft_toRightOf="@id/thumb_container"
             app:layout_constraintRight_toRightOf="parent"
@@ -111,7 +113,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/spacing_normal"
-            android:lines="1"
+            android:lines="2"
             android:text="@{audiobook.author}"
             app:layout_constraintBottom_toTopOf="@id/book_progress_string"
             app:layout_constraintLeft_toRightOf="@id/thumb_container"

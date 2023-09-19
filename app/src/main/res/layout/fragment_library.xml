@@ -112,19 +112,6 @@
                 android:layout_height="match_parent"
                 android:orientation="vertical">
 
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/search_results_list"
-                    searchBookList="@{viewModel.searchResults}"
-                    serverConnectedSearch="@{plexConfig.isConnected()}"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:background="@color/colorPrimaryDark"
-                    android:elevation="8dp"
-                    android:visibility="@{viewModel.isSearchActive() ? View.VISIBLE: View.GONE}"
-                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-                    tools:itemCount="9"
-                    tools:listitem="@layout/list_item_search_result_audiobook" />
-
                 <TextView
                     style="@style/TextAppearance.Body1"
                     android:layout_width="wrap_content"
@@ -135,15 +122,17 @@
                     android:visibility="@{viewModel.searchResults.isEmpty() &amp;&amp; viewModel.isSearchActive() &amp;&amp; !viewModel.isQueryEmpty() ? View.VISIBLE : View.GONE}" />
             </LinearLayout>
 
+            <!-- TODO: figure out how to <include /> with databinding -->
             <io.github.mattpvaughn.chronicle.views.BottomSheetChooser
                 android:id="@+id/bottom_sheet_chooser"
                 bottomChooserState="@{viewModel.bottomChooserState}"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:elevation="1dp"
+                app:layout_anchor="@+id/swipe_to_refresh"
+                app:layout_anchorGravity="center"
                 tools:layout="@layout/view_bottom_sheet_chooser" />
 
-            <!-- TODO: figure out how to <include /> with databinding -->
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/filter_view"
                 android:layout_width="match_parent"
@@ -255,6 +244,12 @@
                         android:tag="@string/key_sort_by_year"
                         android:text="@string/sort_by_year" />
 
+                    <com.google.android.material.chip.Chip
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:tag="@string/key_sort_by_random"
+                        android:text="@string/sort_by_random" />
+
                     <!--                    <com.google.android.material.chip.Chip-->
                     <!--                        android:layout_width="wrap_content"-->
                     <!--                        android:layout_height="wrap_content"-->
@@ -285,6 +280,22 @@
                     app:layout_constraintTop_toBottomOf="@+id/sort_by_options"
                     tools:layout_editor_absoluteX="16dp" />
 
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/group_by_series"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_gravity="end"
+                    android:layout_marginTop="12dp"
+                    android:layout_weight="1"
+                    android:checked="@{viewModel.groupBySeries}"
+                    android:fontFamily="@font/lato"
+                    android:onClick="@{() -> viewModel.toggleGroupBySeries()}"
+                    android:text="@string/group_by_series_switch"
+                    android:textColor="#D8FFFFFF"
+                    android:textSize="16sp"
+                    app:layout_constraintTop_toBottomOf="@+id/hide_played"
+                    tools:layout_editor_absoluteX="16dp" />
+
                 <androidx.appcompat.widget.AppCompatTextView
                     android:id="@+id/view_style_title"
                     style="@style/TextAppearance.Body1"
@@ -296,7 +307,7 @@
                     android:text="@string/view_style"
                     app:layout_constraintLeft_toLeftOf="parent"
                     app:layout_constraintRight_toRightOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/hide_played" />
+                    app:layout_constraintTop_toBottomOf="@id/group_by_series" />
 
                 <com.google.android.material.chip.ChipGroup
                     android:id="@+id/view_styles"
@@ -376,6 +387,21 @@
                 <!--                </com.google.android.material.chip.ChipGroup-->
 
             </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/search_results_list"
+                searchBookList="@{viewModel.searchResults}"
+                serverConnectedSearch="@{plexConfig.isConnected()}"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@color/colorPrimaryDark"
+                android:elevation="8dp"
+                android:visibility="@{viewModel.isSearchActive() ? View.VISIBLE: View.GONE}"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                app:layout_anchor="@+id/swipe_to_refresh"
+                app:layout_anchorGravity="center"
+                tools:itemCount="9"
+                tools:listitem="@layout/list_item_search_result_audiobook" />
         </androidx.coordinatorlayout.widget.CoordinatorLayout>
     </LinearLayout>
 </layout>
