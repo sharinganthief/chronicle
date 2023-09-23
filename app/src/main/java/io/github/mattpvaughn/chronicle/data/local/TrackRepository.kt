@@ -11,6 +11,7 @@ import io.github.mattpvaughn.chronicle.data.sources.MediaSource
 import io.github.mattpvaughn.chronicle.data.sources.plex.PlexMediaService
 import io.github.mattpvaughn.chronicle.data.sources.plex.PlexPrefsRepo
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.MediaType
+import io.github.mattpvaughn.chronicle.data.sources.plex.model.asAudiobooks
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.asTrackList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -131,8 +132,8 @@ interface ITrackRepository {
 class TrackRepository @Inject constructor(
     private val trackDao: TrackDao,
     private val prefsRepo: PrefsRepo,
+    private val plexPrefsRepo: PlexPrefsRepo,
     private val plexMediaService: PlexMediaService,
-    private val plexPrefs: PlexPrefsRepo
 ) : ITrackRepository {
 
     @Throws(Throwable::class)
@@ -151,7 +152,7 @@ class TrackRepository @Inject constructor(
         val networkTracks = mutableListOf<MediaItemTrack>()
         withContext(Dispatchers.IO) {
             try {
-                val libraryId = plexPrefs.library?.id ?: return@withContext
+                val libraryId = plexPrefsRepo.library?.id ?: return@withContext
                 var tracksLeft = 1L
                 // Maximum number of pages of data we fetch. Failsafe in case of bad data from the
                 // server since we don't want infinite loops. This limits us to a maximum 1,000,000
@@ -183,10 +184,28 @@ class TrackRepository @Inject constructor(
     }
 
     override suspend fun fetchNetworkTracksForBook(bookId: Int): List<MediaItemTrack> {
-        return withContext(Dispatchers.IO) {
-            return@withContext plexMediaService.retrieveTracksForAlbum(bookId)
+
+        val baseTracks = withContext(Dispatchers.IO) {
+            plexMediaService.retrieveTracksForAlbum(bookId)
                 .plexMediaContainer
                 .asTrackList()
+        }
+        var networkTracks = baseTracks
+        if (plexPrefsRepo.library?.type == MediaType.SHOW){
+            //use "tracks" which are seasons to get the real tracks, episodes
+            networkTracks = baseTracks
+                .filter { !it.title.lowercase().contains("specials") }
+                .flatMap {
+                plexMediaService.retrieveTracksForAlbum(it.id)
+                    .plexMediaContainer
+                    .asTrackList()  }
+            networkTracks
+                .map{
+                it.parentKey = bookId
+            }
+        }
+        return withContext(Dispatchers.IO) {
+            return@withContext networkTracks
         }
     }
 
@@ -222,11 +241,12 @@ class TrackRepository @Inject constructor(
         forceUseNetwork: Boolean,
     ): Result<List<MediaItemTrack>, Throwable> {
         return withContext(Dispatchers.IO) {
+
             val localTracks = trackDao.getAllTracksAsync()
+            val networkTracks = fetchNetworkTracksForBook(bookId)
+
             try {
-                val networkTracks = plexMediaService.retrieveTracksForAlbum(bookId)
-                    .plexMediaContainer
-                    .asTrackList()
+
                 val mergedTracks = mergeNetworkTracks(
                     networkTracks = networkTracks,
                     localTracks = localTracks,

@@ -37,9 +37,9 @@ interface ICachedFileManager {
 
     fun cancelCaching()
     fun cancelGroup(id: Int)
-    fun downloadTracks(bookId: Int, bookTitle: String)
+    fun downloadTracks(bookId: Int, bookTitle: String, trackId: Int? = null)
     suspend fun uncacheAllInLibrary(): Int
-    suspend fun deleteCachedBook(bookId: Int)
+    suspend fun deleteCachedBook(bookId: Int, trackId: Int? = null)
     suspend fun hasUserCachedTracks(): Boolean
     suspend fun refreshTrackDownloadedStatus()
 }
@@ -92,10 +92,11 @@ class CachedFileManager @Inject constructor(
         }
     }
 
-    override fun downloadTracks(bookId: Int, bookTitle: String) {
+    override fun downloadTracks(bookId: Int, bookTitle: String, trackId: Int?) {
         // Add downloads to Fetch
         GlobalScope.launch {
-            fetch.enqueue(makeRequests(bookId, bookTitle)) {
+            val reqs = makeRequests(bookId, bookTitle, trackId)
+            fetch.enqueue(reqs) {
                 val errors = it.mapNotNull { (_, error) ->
                     if (error == Error.NONE) null else error
                 }
@@ -118,9 +119,11 @@ class CachedFileManager @Inject constructor(
      *
      * @return the number of files to be downloaded
      */
-    private suspend fun makeRequests(bookId: Int, bookTitle: String): List<Request> {
+    private suspend fun makeRequests(bookId: Int, bookTitle: String, trackId: Int?): List<Request> {
         // Gets all tracks for album id
-        val tracks = trackRepository.getTracksForAudiobookAsync(bookId)
+        val allTracks = trackRepository.getTracksForAudiobookAsync(bookId)
+
+        val tracks = if( trackId != null) listOf(allTracks.single { it.id == trackId }) else allTracks
 
         val cachedFilesDir = prefsRepo.cachedMediaDir
         Timber.i("Caching tracks to: ${cachedFilesDir.path}")
@@ -200,19 +203,23 @@ class CachedFileManager @Inject constructor(
      * Return [Result.success] on successful deletion of all files or [Result.failure] if the
      * deletion of any files fail
      */
-    override suspend fun deleteCachedBook(bookId: Int) {
+    override suspend fun deleteCachedBook(bookId: Int, trackId: Int?) {
         Timber.i("Deleting downloaded book: $bookId")
         fetch.deleteGroup(bookId)
         GlobalScope.launch {
             withContext(Dispatchers.IO) {
-                val tracks = trackRepository.getTracksForAudiobookAsync(bookId)
+                val allTracks = trackRepository.getTracksForAudiobookAsync(bookId)
+
+                val tracks = if( trackId != null) listOf(allTracks.single { it.id == trackId }) else allTracks
+
                 tracks.forEach {
                     val trackFile = File(prefsRepo.cachedMediaDir, it.getCachedFileName())
                     trackFile.delete()
                     // now count it as deleted
                     trackRepository.updateCachedStatus(it.id, false)
                 }
-                bookRepository.updateCachedStatus(bookId, false)
+                if( trackId == null)
+                    bookRepository.updateCachedStatus(bookId, false)
             }
         }
     }

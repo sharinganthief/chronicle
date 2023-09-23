@@ -1,5 +1,8 @@
 package io.github.mattpvaughn.chronicle.data.sources.plex
 
+const val MEDIA_TYPE_MOVIE = 9
+const val MEDIA_TYPE_SHOW = 2
+const val MEDIA_TYPE_SEASON = 3
 const val MEDIA_TYPE_ALBUM = 9
 const val MEDIA_TYPE_TRACK = 10
 const val APP_NAME = "Chronicle"

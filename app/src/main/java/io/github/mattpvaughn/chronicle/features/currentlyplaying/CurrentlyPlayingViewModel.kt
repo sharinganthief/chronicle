@@ -23,6 +23,7 @@ import io.github.mattpvaughn.chronicle.data.local.ITrackRepository
 import io.github.mattpvaughn.chronicle.data.local.ITrackRepository.Companion.TRACK_NOT_FOUND
 import io.github.mattpvaughn.chronicle.data.local.PrefsRepo
 import io.github.mattpvaughn.chronicle.data.model.*
+import io.github.mattpvaughn.chronicle.data.sources.plex.ICachedFileManager
 import io.github.mattpvaughn.chronicle.data.sources.plex.PlexConfig
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.getDuration
 import io.github.mattpvaughn.chronicle.features.player.*
@@ -38,6 +39,7 @@ import io.github.mattpvaughn.chronicle.util.*
 import io.github.mattpvaughn.chronicle.views.BottomSheetChooser.*
 import io.github.mattpvaughn.chronicle.views.BottomSheetChooser.BottomChooserState.Companion.EMPTY_BOTTOM_CHOOSER
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
@@ -68,7 +70,7 @@ class CurrentlyPlayingViewModel(
         private val currentlyPlaying: CurrentlyPlaying,
         private val sharedPrefs: SharedPreferences,
     ) : ViewModelProvider.Factory {
-        override fun <T : ViewModel?> create(modelClass: Class<T>): T {
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(CurrentlyPlayingViewModel::class.java)) {
                 return CurrentlyPlayingViewModel(
                     bookRepository,
@@ -86,6 +88,9 @@ class CurrentlyPlayingViewModel(
         }
     }
 
+    @Inject
+    lateinit var cachedFileManager: ICachedFileManager
+
     private var sleepTimerStart = MutableLiveData(-1L)
 
     private var _showUserMessage = MutableLiveData<Event<String>>()
@@ -94,7 +99,7 @@ class CurrentlyPlayingViewModel(
 
     private var audiobookId = MutableLiveData(EMPTY_AUDIOBOOK.id)
 
-    val audiobook: LiveData<Audiobook?> = Transformations.switchMap(audiobookId) { id ->
+    val audiobook: LiveData<Audiobook?> = audiobookId.switchMap { id ->
         if (id == EMPTY_AUDIOBOOK.id) {
             emptyAudiobook
         } else {
@@ -106,7 +111,7 @@ class CurrentlyPlayingViewModel(
     private val emptyTrackList = MutableLiveData<List<MediaItemTrack>>(emptyList())
 
     // TODO: expose combined track/chapter bits in ViewModel as "windowSomething" instead of in xml
-    val tracks: LiveData<List<MediaItemTrack>> = Transformations.switchMap(audiobookId) { id ->
+    val tracks: LiveData<List<MediaItemTrack>> = audiobookId.switchMap { id ->
         if (id == EMPTY_AUDIOBOOK.id) {
             emptyTrackList
         } else {
@@ -121,6 +126,7 @@ class CurrentlyPlayingViewModel(
 
 //    val hiddenDiscs: MutableLiveData<List<Int>> = MutableLiveData<List<Int>>(mutableListOf<Int>())
     val toggleDisc = MutableLiveData<Int>()
+    val trackToCache = MutableLiveData<Int>()
 
     val chapters: DoubleLiveData<Audiobook?, List<Chapter>, List<Chapter>> =
         DoubleLiveData(
@@ -143,7 +149,7 @@ class CurrentlyPlayingViewModel(
         return@map it.coerceIn(PLAYBACK_SPEED_MIN, PLAYBACK_SPEED_MAX)
     }
 
-    val playbackSpeedString = Transformations.map(speed) { speed ->
+    val playbackSpeedString = speed.map { speed ->
         return@map String.format("%.2f", speed) + "x"
     }
 
@@ -152,7 +158,7 @@ class CurrentlyPlayingViewModel(
         get() = _showModalBottomSheetSpeedChooser
 
     val activeTrackId: LiveData<Int> =
-        Transformations.map(mediaServiceConnection.nowPlaying) { metadata ->
+        mediaServiceConnection.nowPlaying.map { metadata ->
             metadata.takeIf { !it.id.isNullOrEmpty() }?.id?.toInt() ?: TRACK_NOT_FOUND
         }
 
@@ -165,7 +171,7 @@ class CurrentlyPlayingViewModel(
         track.progress - chapter.startTimeOffset
     }.asLiveData(viewModelScope.coroutineContext)
 
-    val chapterProgressString = Transformations.map(chapterProgress) { progress ->
+    val chapterProgressString = chapterProgress.map { progress ->
         return@map DateUtils.formatElapsedTime(
             StringBuilder(),
             progress / 1000
@@ -181,11 +187,11 @@ class CurrentlyPlayingViewModel(
         .map { it.progress }
         .asLiveData(viewModelScope.coroutineContext)
 
-    val chapterDuration = Transformations.map(currentChapter) {
+    val chapterDuration = currentChapter.map {
         return@map it.endTimeOffset - it.startTimeOffset
     }
 
-    val chapterDurationString = Transformations.map(chapterDuration) { duration ->
+    val chapterDurationString = chapterDuration.map { duration ->
         return@map DateUtils.formatElapsedTime(
             StringBuilder(),
             duration / 1000
@@ -204,31 +210,31 @@ class CurrentlyPlayingViewModel(
 
     private var sleepTimerTimeRemaining = MutableLiveData(0L)
 
-    val sleepTimerTimeRemainingString = Transformations.map(sleepTimerTimeRemaining) {
+    val sleepTimerTimeRemainingString = sleepTimerTimeRemaining.map {
         return@map DateUtils.formatElapsedTime(StringBuilder(), it / 1000)
     }
 
-    val sleepTimerStartTimeString = Transformations.map(sleepTimerStart) {
+    val sleepTimerStartTimeString = sleepTimerStart.map {
         return@map DateUtils.formatElapsedTime(StringBuilder(), it / 1000)
     }
 
     val isPlaying: LiveData<Boolean> =
-        Transformations.map(mediaServiceConnection.playbackState) { state ->
+        mediaServiceConnection.playbackState.map { state ->
             return@map state.isPlaying
         }
 
-    val trackProgress = Transformations.map(currentTrack) { track ->
+    val trackProgress = currentTrack.map { track ->
         return@map DateUtils.formatElapsedTime(
             StringBuilder(),
             track.progress / 1000
         )
     }
 
-    val trackDuration = Transformations.map(currentTrack) { track ->
+    val trackDuration = currentTrack.map { track ->
         return@map DateUtils.formatElapsedTime(StringBuilder(), track.duration / 1000)
     }
 
-    val progressString = Transformations.map(tracks) { tracks: List<MediaItemTrack> ->
+    val progressString = tracks.map { tracks: List<MediaItemTrack> ->
         if (tracks.isEmpty()) {
             return@map "0:00/0:00"
         }
@@ -237,7 +243,7 @@ class CurrentlyPlayingViewModel(
         return@map "$progressStr/$durationStr"
     }
 
-    val progressPercentageString = Transformations.map(tracks) { tracks: List<MediaItemTrack> ->
+    val progressPercentageString = tracks.map { tracks: List<MediaItemTrack> ->
         return@map "${tracks.getProgressPercentage()}%"
     }
 
@@ -265,8 +271,8 @@ class CurrentlyPlayingViewModel(
     }.asFlow()
 
     val activeChapter = currentlyPlaying.chapter.combine(cachedChapter) { activeChapter: Chapter, cachedChapter: Chapter ->
-        Timber.i("Cached: ${cachedChapter.title}, active: ${activeChapter.title}")
-        if (activeChapter != EMPTY_CHAPTER) {
+        Timber.i("Cached: $cachedChapter, active: $activeChapter")
+        if (activeChapter != EMPTY_CHAPTER && activeChapter.trackId == cachedChapter.trackId) {
             activeChapter
         } else {
             cachedChapter
@@ -629,8 +635,7 @@ class CurrentlyPlayingViewModel(
 
                 val actionPair: Pair<SleepTimerAction, Long> = when (formattableString.stringRes) {
                     R.string.sleep_timer_duration_5_minutes -> {
-//                        val duration = 5 * SECONDS_PER_MINUTE * MILLIS_PER_SECOND
-                        val duration = 5 * MILLIS_PER_SECOND
+                        val duration = 5 * SECONDS_PER_MINUTE * MILLIS_PER_SECOND
                         BEGIN to duration
                     }
                     R.string.sleep_timer_duration_15_minutes -> {
@@ -659,10 +664,10 @@ class CurrentlyPlayingViewModel(
                     }
                     R.string.sleep_timer_duration_end_of_chapter -> {
                         val duration = (
-                            (chapterDuration.value ?: 0L) - (
+                            ((chapterDuration.value ?: 0L) - (
                                 chapterProgress.value
                                     ?: 0L
-                                ) / prefsRepo.playbackSpeed
+                                )) / prefsRepo.playbackSpeed
                             ).toLong()
                         BEGIN to duration
                     }
@@ -808,6 +813,36 @@ class CurrentlyPlayingViewModel(
                 val chapterDuration = chapter.endTimeOffset - chapter.startTimeOffset
                 val offset = chapter.startTimeOffset + (percentProgress * chapterDuration).toLong()
                 mediaServiceConnection.transportControls?.seekTo(offset)
+            }
+        }
+    }
+
+    fun cacheTrackClick(toInt: Int) {
+        GlobalScope.launch {
+            val track = trackRepository.getTrackAsync(toInt)!!
+
+            val cacheStatus = if (track.cached) ICachedFileManager.CacheStatus.CACHED
+            else  ICachedFileManager.CacheStatus.NOT_CACHED
+
+            when (cacheStatus) {
+                ICachedFileManager.CacheStatus.NOT_CACHED -> {
+                    if (plexConfig.isConnected.value == true) {
+                        cachedFileManager.downloadTracks(
+                            track.parentKey,
+                            track.parentTitle,
+                            track.id
+                        )
+                    }
+                    return@launch
+                }
+
+                ICachedFileManager.CacheStatus.CACHED -> {
+                    Timber.i("Already cached track. Uncaching")
+                    cachedFileManager.deleteCachedBook(track.parentKey, track.id)
+                    return@launch
+                }
+
+                else -> return@launch
             }
         }
     }

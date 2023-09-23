@@ -98,7 +98,7 @@ class ChooseLibraryViewModel @Inject constructor(
                 _loadingStatus.value = LoadingStatus.LOADING
                 val libraryContainer = plexMediaService.retrieveLibraries()
                 val tempLibraries = libraryContainer.plexMediaContainer.plexDirectories
-                    .filter { it.type == ARTIST.typeString }
+                    //.filter { it.type == ARTIST.typeString }
                     .map { it.asLibrary() }
                 Timber.i("Libraries: $tempLibraries")
                 _libraries.postValue(tempLibraries)

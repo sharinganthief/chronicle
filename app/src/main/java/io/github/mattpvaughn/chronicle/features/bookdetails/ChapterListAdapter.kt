@@ -5,19 +5,25 @@ import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.liveData
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import io.github.mattpvaughn.chronicle.Quadruple
+import io.github.mattpvaughn.chronicle.data.model.Audiobook
 import io.github.mattpvaughn.chronicle.data.model.Chapter
+import io.github.mattpvaughn.chronicle.data.sources.plex.ICachedFileManager
 import io.github.mattpvaughn.chronicle.databinding.ListItemAudiobookTrackBinding
 import io.github.mattpvaughn.chronicle.databinding.ListItemDiscNumberSectionHeadingBinding
 import io.github.mattpvaughn.chronicle.features.bookdetails.ChapterListAdapter.ChapterListModel.ChapterItemModel
 import io.github.mattpvaughn.chronicle.features.bookdetails.ChapterListAdapter.ChapterListModel.SectionHeaderWrapper
+import io.github.mattpvaughn.chronicle.features.currentlyplaying.CurrentlyPlayingViewModel
+import io.github.mattpvaughn.chronicle.util.DoubleLiveData
 import timber.log.Timber
 
 
-class ChapterListAdapter(val clickListener: TrackClickListener, val headerClickListener: HeaderClickListener) :
+class ChapterListAdapter(val cacheListener: TrackClickListener, val clickListener: TrackClickListener, val headerClickListener: HeaderClickListener) :
     ListAdapter<ChapterListAdapter.ChapterListModel, RecyclerView.ViewHolder>(
         ChapterItemDiffCallback()
     ) {
@@ -42,6 +48,7 @@ class ChapterListAdapter(val clickListener: TrackClickListener, val headerClickL
 
     private var activeChapter = Triple(-1L, -1, -1L)
     private var hiddenDiscs = mutableListOf<Int>()
+    private var downloadedTracks = mutableListOf<Int>()
     private var chapters = emptyList<Chapter>()
 
     private fun runChapters() {
@@ -58,6 +65,14 @@ class ChapterListAdapter(val clickListener: TrackClickListener, val headerClickL
             this.chapters = chapters
         }
 
+//        if(this.chapters != null && this.chapters.any()){
+//            this.chapters.forEach {
+//                if(downloadedTracks.contains(it.trackId.toInt())){
+//                    it.downloaded = true
+//                }
+//            }
+//        }
+
         var defaultDiscs = firstChaps && this.chapters.any();
         val discsToHide = mutableListOf<Int>()
 
@@ -72,8 +87,7 @@ class ChapterListAdapter(val clickListener: TrackClickListener, val headerClickL
                 this.hiddenDiscs.add(firstChapter.discNumber)
             }
 
-            var parsed = parseDiscName(firstChapter.title)
-            var discHeading = "${parsed.second} - ${parsed.third}"
+            val discHeading = parseDiscHeading(firstChapter)
 
             val listWithSections = mutableListOf<ChapterListModel>()
             listWithSections.add(
@@ -83,7 +97,8 @@ class ChapterListAdapter(val clickListener: TrackClickListener, val headerClickL
                     )
                 )
             )
-            listWithSections.add(ChapterItemModel(firstChapter, isActive(firstChapter), isVisible(firstChapter)))
+            var first = ChapterItemModel(firstChapter, isActive(firstChapter), isVisible(firstChapter))
+            listWithSections.add(first)
             chapters.fold(firstChapter) { prev, curr ->
                 // avoid edge cases at start/end, id is guaranteed to be different for unique
                 // chapters/tracks by Plex
@@ -97,8 +112,7 @@ class ChapterListAdapter(val clickListener: TrackClickListener, val headerClickL
                         hiddenDiscs.add(curr.discNumber)
                     }
 
-                    var parsed = parseDiscName(curr.title)
-                    var discHeading = "${parsed.second} - ${parsed.third}"
+                    val discHeading = parseDiscHeading(curr)
 
                     listWithSections.add(
                         SectionHeaderWrapper(
@@ -108,6 +122,7 @@ class ChapterListAdapter(val clickListener: TrackClickListener, val headerClickL
                         )
                     )
                 }
+
                 listWithSections.add(ChapterItemModel(curr, isActive(curr), isVisible(curr)))
                 curr
             }
@@ -123,24 +138,52 @@ class ChapterListAdapter(val clickListener: TrackClickListener, val headerClickL
         }
     }
 
-    private val regex = Regex("(.*?)\\s\\-\\sBooks?\\s([\\d|\\.|\\-|\\s]*)\\s\\-\\s(.*)")
+    private fun parseDiscHeading(chapter: Chapter): String {
 
-    private fun parseDiscName(title: String): Triple<String, String,String> {
-
-        var matchResult = regex.find(title);
-        if (matchResult == null || matchResult!!.groupValues.size <= 1) {
-            return Triple("", "", title);
+        if (!chapter.album.isNullOrEmpty()){
+            return chapter.album
         }
 
-        var seriesName = matchResult!!.groupValues[1];
-        var bookNum = matchResult!!.groupValues[2];
-        var bookTitle = matchResult!!.groupValues[3];
+        var parsed = parseDiscName(chapter.title)
+
+        if (!parsed.first)
+            return chapter.title
+
+        if (parsed.third.isNullOrEmpty() && parsed.fourth.isNullOrEmpty() && !parsed.second.isNullOrEmpty())
+             return parsed.second!!
+
+        return "${parsed.third!!} - ${parsed.fourth!!}"
+    }
+
+    private val bookRegex = Regex("(.*?)\\s\\-\\sBooks?\\s([\\d|\\.|\\-|\\s]*)\\s\\-\\s(.*)")
+    private val showRegex = Regex("(.*)\\s\\-\\sS(\\d+)E(\\d+)\\s\\-\\s(.*)")
+
+    private fun parseDiscName(title: String): Quadruple<Boolean,String?, String?, String?> {
+
+        val bookResult = bookRegex.find(title);
+        if (bookResult == null || bookResult!!.groupValues.size <= 1) {
+            val showResult = showRegex.find(title)
+            if (showResult == null || showResult!!.groupValues.size <= 1) {
+                return Quadruple(false,null, null, title)
+            }
+
+//            var seriesName = showResult!!.groupValues[1]
+            var seasonNum = showResult!!.groupValues[2]
+//            var episodeNum = showResult!!.groupValues[3]
+//            var episodeTitle = showResult!!.groupValues[4]
+            return Quadruple(true, "Season $seasonNum", null, null)
+
+        }
+
+        var seriesName = bookResult!!.groupValues[1];
+        var bookNum = bookResult!!.groupValues[2];
+        var bookTitle = bookResult!!.groupValues[3];
 
         if (seriesName.isNullOrEmpty() || bookNum.isNullOrEmpty() || bookTitle.isNullOrEmpty()) {
-            return Triple("", "", title);
+            return Quadruple(false, null, null, title);
         }
 
-        return Triple(seriesName, bookNum, bookTitle);
+        return Quadruple(true, seriesName, bookNum, bookTitle);
     }
 
     fun isActive(chapter: Chapter) = chapter.trackId == activeChapter.first &&
@@ -163,7 +206,7 @@ class ChapterListAdapter(val clickListener: TrackClickListener, val headerClickL
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         return when (viewType) {
-            ChapterListModel.CHAPTER_TYPE -> ChapterViewHolder.from(parent, clickListener)
+            ChapterListModel.CHAPTER_TYPE -> ChapterViewHolder.from(parent, clickListener, cacheListener)
             ChapterListModel.SECTION_HEADER_TYPE -> SectionHeaderViewHolder.from(parent, headerClickListener)
             else -> throw NoWhenBranchMatchedException()
         }
@@ -216,23 +259,36 @@ class ChapterListAdapter(val clickListener: TrackClickListener, val headerClickL
         runChapters()
     }
 
+    fun toggleDownloaded(track: Int) {
+        if(this.downloadedTracks.contains(track)){
+            this.downloadedTracks.remove(track)
+        }
+        else {
+            this.downloadedTracks.add(track)
+        }
+
+        runChapters()
+    }
+
     class ChapterViewHolder private constructor(
         private val binding: ListItemAudiobookTrackBinding,
-        private val clickListener: TrackClickListener
+        private val clickListener: TrackClickListener,
+        private val cacheListener: TrackClickListener
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(chapter: Chapter, isActive: Boolean, isVisible: Boolean) {
             binding.chapter = chapter
             binding.isActive = isActive
             binding.isVisible = isVisible
             binding.clickListener = clickListener
+//            binding.cacheListener = cacheListener
             binding.executePendingBindings()
         }
 
         companion object {
-            fun from(parent: ViewGroup, clickListener: TrackClickListener): ChapterViewHolder {
+            fun from(parent: ViewGroup, clickListener: TrackClickListener, cacheListener: TrackClickListener): ChapterViewHolder {
                 val layoutInflater = LayoutInflater.from(parent.context)
                 val binding = ListItemAudiobookTrackBinding.inflate(layoutInflater, parent, false)
-                return ChapterViewHolder(binding, clickListener)
+                return ChapterViewHolder(binding, clickListener, cacheListener)
             }
         }
     }
@@ -298,6 +354,10 @@ class ChapterListAdapter(val clickListener: TrackClickListener, val headerClickL
 
 interface TrackClickListener {
     fun onClick(chapter: Chapter)
+}
+
+interface CacheStatusListener {
+    fun getStatus(chapter: Chapter):Boolean
 }
 
 interface HeaderClickListener {

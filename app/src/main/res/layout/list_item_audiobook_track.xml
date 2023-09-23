@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layout xmlns:app="http://schemas.android.com/apk/res-auto"
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools">
 
     <data>
@@ -23,62 +24,69 @@
             name="clickListener"
             type="io.github.mattpvaughn.chronicle.features.bookdetails.TrackClickListener" />
 
+<!--        <variable-->
+<!--            name="cacheListener"-->
+<!--            type="io.github.mattpvaughn.chronicle.features.bookdetails.TrackClickListener" />-->
+
         <import type="android.view.View" />
+        <import type="io.github.mattpvaughn.chronicle.data.sources.plex.ICachedFileManager.CacheStatus" />
     </data>
 
-    <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="@dimen/track_list_item_height"
-        android:onClick="@{() -> clickListener.onClick(chapter)}">
+        android:layout_height="@dimen/track_list_item_height">
 
-        <FrameLayout
-            android:id="@+id/track_number_wrapper"
+<!--        <ImageView-->
+<!--            android:id="@+id/download"-->
+<!--            android:layout_width="@dimen/chapter_indent"-->
+<!--            android:layout_height="@dimen/chapter_indent"-->
+<!--            android:layout_marginStart="@dimen/chapter_indent"-->
+<!--            android:layout_marginTop="16dp"-->
+<!--            android:layout_marginBottom="24dp"-->
+<!--            android:contentDescription="@string/download"-->
+<!--            android:onClick="@{() -> cacheListener.onClick(chapter)}"-->
+<!--            android:src="@{chapter.downloaded ? @drawable/ic_cloud_done_white : @drawable/ic_cloud_download_white}"-->
+<!--            app:layout_constraintBottom_toBottomOf="parent"-->
+<!--            app:layout_constraintStart_toStartOf="parent"-->
+<!--            app:layout_constraintEnd_toStartOf="@id/track_number"-->
+<!--            app:layout_constraintTop_toTopOf="parent" />-->
+
+<!--        app:layout_constraintStart_toEndOf="@id/download"-->
+
+        <TextView
+            android:id="@+id/track_number"
+            style="@style/TextAppearance.Body2"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="start|center_vertical"
             android:layout_marginStart="@dimen/chapter_indent"
-            android:layout_marginEnd="@dimen/chapter_indent"
-            app:layout_constraintBottom_toBottomOf="@id/track_name"
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintTop_toTopOf="@id/track_name">
-
-            <TextView
-                android:id="@+id/track_number"
-                style="@style/TextAppearance.Body2"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:lines="2"
-                android:layout_gravity="start|center_vertical"
-                android:text="@{chapter.paddedIndex(2)}"
-                android:textAllCaps="true"
-                android:textColor="@{isActive ? @color/textActiveSecondary : @color/textSecondary}"
-                tools:text="Something Very long that has to wrap to a second line cause long" />
-
-            <!--            <ImageView-->
-            <!--                android:layout_width="@dimen/track_list_item_indicator_size"-->
-            <!--                android:layout_height="@dimen/track_list_item_indicator_size"-->
-            <!--                android:tint="@{track.cached ? @color/iconActive : @color/icon}"-->
-            <!--                android:src="@drawable/ic_playing"-->
-            <!--                android:scaleType="centerInside"-->
-            <!--                android:visibility="@{track.id == activeTrackId ? View.VISIBLE : View.GONE}" />-->
-        </FrameLayout>
+            android:lines="2"
+            android:text="@{chapter.paddedIndex(2)}"
+            android:textAllCaps="true"
+            android:textColor="@{isActive ? @color/textActiveSecondary : @color/textSecondary}"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/track_name"
+            app:layout_constraintBottom_toBottomOf="parent"
+            tools:text="01" />
 
         <TextView
             android:id="@+id/track_name"
             style="@style/TextAppearance.Body1"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/keyline_x_offset"
             android:layout_marginTop="@dimen/margin_normal"
-            android:layout_marginEnd="@dimen/screen_horizontal_padding"
             android:layout_marginBottom="@dimen/margin_normal"
-            android:lines="2"
+            android:layout_marginStart="@dimen/chapter_indent"
             android:ellipsize="end"
+            android:lines="2"
+            android:onClick="@{() -> clickListener.onClick(chapter)}"
             android:text="@{chapter.title}"
             android:textColor="@{isActive ? @color/textActive : @color/textPrimary}"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@+id/track_duration"
-            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toEndOf="@id/track_number"
+            app:layout_constraintEnd_toStartOf="@+id/track_duration"
+            app:layout_constraintBottom_toBottomOf="parent"
             tools:text="Track name but it's very long with a lot of text so it overflows" />
 
         <TextView
@@ -90,9 +98,11 @@
             android:layout_marginEnd="@dimen/screen_horizontal_padding"
             android:text="@{chapter.durationStr}"
             android:textColor="@{isActive ? @color/textActive : @color/textPrimary}"
-            app:layout_constraintBottom_toBottomOf="@id/track_name"
-            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="@+id/track_name"
+            app:layout_constraintStart_toEndOf="@id/track_name"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="@id/track_name"
+
             tools:text="05:14" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>

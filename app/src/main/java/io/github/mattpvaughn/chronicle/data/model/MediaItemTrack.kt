@@ -6,7 +6,9 @@ import androidx.room.PrimaryKey
 import io.github.mattpvaughn.chronicle.application.Injector
 import io.github.mattpvaughn.chronicle.data.local.ITrackRepository.Companion.TRACK_NOT_FOUND
 import io.github.mattpvaughn.chronicle.data.model.MediaItemTrack.Companion.EMPTY_TRACK
+import io.github.mattpvaughn.chronicle.data.sources.plex.MEDIA_TYPE_TRACK
 import io.github.mattpvaughn.chronicle.data.sources.plex.PlexConfig
+import io.github.mattpvaughn.chronicle.data.sources.plex.model.Media
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.PlexDirectory
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.getDuration
 import io.github.mattpvaughn.chronicle.features.player.*
@@ -21,17 +23,18 @@ import kotlin.math.roundToInt
 data class MediaItemTrack(
     @PrimaryKey
     val id: Int = TRACK_NOT_FOUND,
-    val parentKey: Int = -1,
-    val title: String = "",
+    var parentKey: Int = -1,
+    var parentTitle: String = "",
+    var title: String = "",
     val playQueueItemID: Long = -1,
     val thumb: String? = null,
-    val index: Int = 0,
-    val discNumber: Int = 1,
+    var index: Int = 0,
+    var discNumber: Int = 1,
     /** The duration of the track in milliseconds */
     val duration: Long = 0L,
     /** Path to the media file in the form "/library/parts/[id]/SOME_NUMBER/file.mp3" */
     val media: String = "",
-    val album: String = "",
+    var album: String = "",
     val artist: String = "",
     val genre: String = "",
     val cached: Boolean = false,
@@ -42,6 +45,7 @@ data class MediaItemTrack(
     val updatedAt: Long = 0L,
     val size: Long = 0L
 ) : Comparable<MediaItemTrack> {
+
     companion object {
         fun from(metadata: MediaMetadataCompat): MediaItemTrack {
             return MediaItemTrack(
@@ -91,9 +95,10 @@ data class MediaItemTrack(
 
         /** Create a [MediaItemTrack] from a Plex model and an index */
         fun fromPlexModel(networkTrack: PlexDirectory): MediaItemTrack {
-            return MediaItemTrack(
+            var baseTrack = MediaItemTrack(
                 id = networkTrack.ratingKey.toInt(),
                 parentKey = networkTrack.parentRatingKey,
+                parentTitle = networkTrack.parentTitle,
                 title = networkTrack.title,
                 artist = networkTrack.grandparentTitle,
                 thumb = networkTrack.thumb,
@@ -101,12 +106,29 @@ data class MediaItemTrack(
                 discNumber = networkTrack.parentIndex,
                 duration = networkTrack.duration,
                 progress = networkTrack.viewOffset,
-                media = networkTrack.media[0].part[0].key,
                 album = networkTrack.parentTitle,
                 lastViewedAt = networkTrack.lastViewedAt,
                 updatedAt = networkTrack.updatedAt,
-                size = networkTrack.media[0].part[0].size
+                media = if (networkTrack.media.isNotEmpty() && networkTrack.media[0].part.isNotEmpty()) networkTrack.media[0].part[0].key else "",
+                size = if (networkTrack.media.isNotEmpty() && networkTrack.media[0].part.isNotEmpty()) networkTrack.media[0].part[0].size else -1,
             )
+
+//            if(networkTrack.type == "show"){
+//                baseTrack.album = networkTrack.parentTitle + " - " + networkTrack.title
+//            }
+
+            if(networkTrack.type == "episode"){
+//                val baseIndex = networkTrack.index;
+                baseTrack.album = networkTrack.parentTitle
+//                baseTrack.title = networkTrack.grandparentTitle + " - " +
+//                                  "S" + networkTrack.parentIndex.toString().padStart(2,'0') +
+//                                  "E" +  baseIndex.toString().padStart(2,'0') +  " - " +
+//                                  networkTrack.title
+                baseTrack.discNumber = networkTrack.parentIndex
+                //baseTrack.index = 1
+            }
+
+            return baseTrack;
         }
 
         const val PARENT_KEY_PREFIX = "/library/metadata/"
@@ -245,6 +267,7 @@ fun List<MediaItemTrack>.asChapterList(): List<Chapter> {
 fun MediaItemTrack.asChapter(startOffset: Long): Chapter {
     return Chapter(
         title = title,
+        album = album,
         id = id.toLong(),
         index = index.toLong(),
         discNumber = discNumber,

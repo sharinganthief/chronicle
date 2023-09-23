@@ -5,6 +5,10 @@ class MediaType(val id: Long, val typeString: String, val title: String) {
     companion object {
         val PERSON = MediaType(7, "person", "Person")
 
+        val SHOW = MediaType(2, "show", "Show")
+        val SEASON = MediaType(3, "season", "Season")
+        val EPISODE = MediaType(4, "episode", "Episode")
+        val MOVIE = MediaType(1, "movie", "Movie")
         // NOTE: Music/audiobook libraries default to a type of ARTIST
         val ARTIST = MediaType(8, "artist", "Artist")
         val ALBUM = MediaType(9, "album", "Album")
@@ -12,7 +16,7 @@ class MediaType(val id: Long, val typeString: String, val title: String) {
         val FOLDER = MediaType(-1, "folder", "Folder")
         val COLLECTION = MediaType(-1, "collection", "Collection")
 
-        val TYPES = listOf(PERSON, ARTIST, ALBUM, TRACK, FOLDER, COLLECTION)
+        val TYPES = listOf(PERSON, ARTIST, ALBUM, TRACK, FOLDER, COLLECTION, MOVIE, SHOW, EPISODE)
 
         const val AUDIO_STRING = "audio"
     }

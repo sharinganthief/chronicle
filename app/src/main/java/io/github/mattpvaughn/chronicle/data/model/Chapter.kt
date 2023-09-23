@@ -1,14 +1,28 @@
 package io.github.mattpvaughn.chronicle.data.model
 
 import android.text.format.DateUtils
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.map
+import androidx.lifecycle.viewModelScope
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
+import io.github.mattpvaughn.chronicle.R
 import io.github.mattpvaughn.chronicle.data.local.ITrackRepository.Companion.TRACK_NOT_FOUND
+import io.github.mattpvaughn.chronicle.data.sources.plex.ICachedFileManager
+import io.github.mattpvaughn.chronicle.data.sources.plex.PlexConfig
+import io.github.mattpvaughn.chronicle.util.DoubleLiveData
+import io.github.mattpvaughn.chronicle.views.BottomSheetChooser
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import timber.log.Timber
+import javax.inject.Inject
 
 @Entity
 data class Chapter constructor(
-    val title: String = "",
+    var title: String = "",
+    val album: String = "",
     @PrimaryKey
     val id: Long = 0L,
     val index: Long = 0L,
@@ -17,7 +31,7 @@ data class Chapter constructor(
     val startTimeOffset: Long = 0L,
     // The number of milliseconds between the start of the containing track and the end of the chapter
     val endTimeOffset: Long = 0L,
-    val downloaded: Boolean = false,
+    var downloaded: Boolean = false,
     val trackId: Long = TRACK_NOT_FOUND.toLong(),
     val bookId: Long = NO_AUDIOBOOK_FOUND_ID.toLong()
 ) : Comparable<Chapter> {
@@ -66,16 +80,17 @@ class ChapterListConverter {
         }
         return s.split("®").map {
             val split = it.split("©")
-            val discNumber = if (split.size >= 6) split[5].toInt() else 1
-            val downloaded = if (split.size >= 7) split[6].toBoolean() else false
-            val trackId = if (split.size >= 8) split[7].toLong() else TRACK_NOT_FOUND.toLong()
-            val bookId = if (split.size >= 9) split[8].toLong() else NO_AUDIOBOOK_FOUND_ID.toLong()
+            val discNumber = if (split.size >= 7) split[6].toInt() else 1
+            val downloaded = if (split.size >= 8) split[7].toBoolean() else false
+            val trackId = if (split.size >= 9) split[8].toLong() else TRACK_NOT_FOUND.toLong()
+            val bookId = if (split.size >= 10) split[9].toLong() else NO_AUDIOBOOK_FOUND_ID.toLong()
             Chapter(
                 title = split[0],
-                id = split[1].toLong(),
-                index = split[2].toLong(),
-                startTimeOffset = split[3].toLong(),
-                endTimeOffset = split[4].toLong(),
+                album = split[1],
+                id = split[2].toLong(),
+                index = split[3].toLong(),
+                startTimeOffset = split[4].toLong(),
+                endTimeOffset = split[5].toLong(),
                 discNumber = discNumber,
                 downloaded = downloaded,
                 trackId = trackId,
@@ -87,6 +102,6 @@ class ChapterListConverter {
     // A little yikes but funny
     @TypeConverter
     fun toString(chapters: List<Chapter>): String {
-        return chapters.joinToString("®") { "${it.title}©${it.id}©${it.index}©${it.startTimeOffset}©${it.endTimeOffset}©${it.discNumber}©${it.downloaded}©${it.trackId}©${it.bookId}" }
+        return chapters.joinToString("®") { "${it.title}©${it.album}©${it.id}©${it.index}©${it.startTimeOffset}©${it.endTimeOffset}©${it.discNumber}©${it.downloaded}©${it.trackId}©${it.bookId}" }
     }
 }

@@ -8,6 +8,7 @@ import io.github.mattpvaughn.chronicle.data.model.ServerModel
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.Connection
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.MediaType
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.PlexUser
+import io.github.mattpvaughn.chronicle.data.sources.plex.model.asLibrary
 import java.util.*
 import javax.inject.Inject
 import kotlin.collections.HashSet
@@ -54,6 +55,7 @@ class SharedPreferencesPlexPrefsRepo @Inject constructor(
     private companion object {
         const val PREFS_AUTH_TOKEN_KEY = "auth_token"
         const val PREFS_LIBRARY_NAME_KEY = "library_name"
+        const val PREFS_LIBRARY_TYPE_KEY = "library_type"
         const val PREFS_LIBRARY_ID_KEY = "library_id"
         const val PREFS_SERVER_NAME_KEY = "server_name"
         const val PREFS_SERVER_ACCESS_TOKEN = "server_token"
@@ -108,22 +110,32 @@ class SharedPreferencesPlexPrefsRepo @Inject constructor(
         get() {
             val name = getString(PREFS_LIBRARY_NAME_KEY)
             val id = getString(PREFS_LIBRARY_ID_KEY)
-            if (name.isEmpty() || id.isEmpty()) {
+            val typeId = getString(PREFS_LIBRARY_TYPE_KEY)
+            if (name.isEmpty() || id.isEmpty() || typeId.isEmpty()) {
                 return null
             }
-            return PlexLibrary(name, MediaType.ARTIST, id)
+
+            val mediaType = MediaType.TYPES.find { mediaType -> mediaType.id == typeId.toLong() }
+                ?: return null
+
+            return PlexLibrary(name, mediaType, id)
         }
         @SuppressLint("ApplySharedPref")
         set(value) {
             if (value == null) {
                 prefs.edit()
                     .remove(PREFS_LIBRARY_ID_KEY)
-                    .remove(PREFS_LIBRARY_NAME_KEY).commit()
+                    .remove(PREFS_LIBRARY_NAME_KEY)
+                    .remove(PREFS_LIBRARY_TYPE_KEY)
+                    .commit()
+
                 return
             }
             prefs.edit()
                 .putString(PREFS_LIBRARY_NAME_KEY, value.name)
-                .putString(PREFS_LIBRARY_ID_KEY, value.id).commit()
+                .putString(PREFS_LIBRARY_ID_KEY, value.id)
+                .putString(PREFS_LIBRARY_TYPE_KEY, value.type.id.toString())
+                .commit()
         }
 
     override var server: ServerModel?

@@ -43,8 +43,20 @@ interface PlexMediaService {
         @Path("libraryId") libraryId: String
     ): PlexMediaContainerWrapper
 
+    @GET("/library/sections/{libraryId}/all?type=$MEDIA_TYPE_SHOW")
+    suspend fun retrieveAllShows(
+        @Path("libraryId") libraryId: String
+    ): PlexMediaContainerWrapper
+
     @GET("/library/sections/{libraryId}/all?type=$MEDIA_TYPE_ALBUM")
     suspend fun retrieveAlbumPage(
+        @Path("libraryId") libraryId: String,
+        @Query("X-Plex-Container-Start") containerStart: Int = 0,
+        @Query("X-Plex-Container-Size") containerSize: Int = 100,
+    ): PlexMediaContainerWrapper
+
+    @GET("/library/sections/{libraryId}/all?type=$MEDIA_TYPE_SHOW")
+    suspend fun retrieveShowPage(
         @Path("libraryId") libraryId: String,
         @Query("X-Plex-Container-Start") containerStart: Int = 0,
         @Query("X-Plex-Container-Size") containerSize: Int = 100,

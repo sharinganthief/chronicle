@@ -26,6 +26,8 @@ import io.github.mattpvaughn.chronicle.data.model.*
 import io.github.mattpvaughn.chronicle.data.sources.plex.PlexConfig
 import io.github.mattpvaughn.chronicle.data.sources.plex.PlexPrefsRepo
 import io.github.mattpvaughn.chronicle.data.sources.plex.getMediaItemUri
+import io.github.mattpvaughn.chronicle.data.sources.plex.model.MediaType
+import io.github.mattpvaughn.chronicle.data.sources.plex.model.asTrackList
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.getDuration
 import io.github.mattpvaughn.chronicle.features.currentlyplaying.CurrentlyPlaying
 import io.github.mattpvaughn.chronicle.features.player.MediaPlayerService.Companion.ACTIVE_TRACK
@@ -253,8 +255,9 @@ class AudiobookMediaSessionCallback @Inject constructor(
         }
         serviceScope.launch {
             val tracks = withContext(Dispatchers.IO) {
-                trackRepository.getTracksForAudiobookAsync(bookId.toInt())
+                trackRepository.fetchNetworkTracksForBook(bookId.toInt())
             }
+
             if (tracks.isNullOrEmpty()) {
                 handlePlayBookWithNoTracks(bookId, tracks, extras, playWhenReady)
                 return@launch

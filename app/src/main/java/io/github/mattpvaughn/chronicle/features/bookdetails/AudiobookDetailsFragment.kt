@@ -19,6 +19,7 @@ import io.github.mattpvaughn.chronicle.data.model.Chapter
 import io.github.mattpvaughn.chronicle.data.sources.MediaSource
 import io.github.mattpvaughn.chronicle.data.sources.plex.PlexConfig
 import io.github.mattpvaughn.chronicle.databinding.FragmentAudiobookDetailsBinding
+import io.github.mattpvaughn.chronicle.features.currentlyplaying.CurrentlyPlaying
 import io.github.mattpvaughn.chronicle.features.player.MediaServiceConnection
 import io.github.mattpvaughn.chronicle.navigation.Navigator
 import io.github.mattpvaughn.chronicle.util.observeEvent
@@ -51,6 +52,9 @@ class AudiobookDetailsFragment : Fragment() {
 
     @Inject
     lateinit var plexConfig: PlexConfig
+
+    @Inject
+    lateinit var currentlyPlaying: CurrentlyPlaying
 
     @Inject
     lateinit var mediaServiceConnection: MediaServiceConnection
@@ -169,18 +173,6 @@ class AudiobookDetailsFragment : Fragment() {
         viewModel.toggleDisc.observe(viewLifecycleOwner) { hiddenDisc ->
             adapter.toggleHiddenDisc( hiddenDisc )
         }
-
-//        viewModel.collapseAll.observe(viewLifecycleOwner) { collapse ->
-//            if(collapse){
-//                adapter.toggleHiddenDisc( collapse )
-//            }
-//            viewModel.collapseAll.value = false;
-//
-//        }
-
-//        viewModel.hiddenDiscs.observe(viewLifecycleOwner) { hiddenDiscs ->
-//            adapter.updateCurrentHiddenDiscs( hiddenDiscs )
-//        }
 
         viewModel.forceSyncInProgress.observe(viewLifecycleOwner) { isSyncing ->
             val syncMenuItem = binding.detailsToolbar.menu.findItem(R.id.force_sync)

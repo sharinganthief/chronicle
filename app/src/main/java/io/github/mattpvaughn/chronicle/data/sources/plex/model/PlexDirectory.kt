@@ -21,7 +21,7 @@ data class PlexDirectory(
     val type: String = "",
     val grandparentTitle: String = "",
     val thumb: String = "",
-    val size: Int = 0,
+    var size: Int = 0,
     val summary: String = "",
     val parentYear: Int = 0,
     val year: Int = 0,
@@ -38,7 +38,7 @@ data class PlexDirectory(
     val index: Int = 0,
     val parentIndex: Int = 1,
     @Json(name = "Media")
-    val media: List<Media> = emptyList(),
+    var media: List<Media> = emptyList(),
     val viewOffset: Long = 0L,
     @Json(name = "Collection")
     val collections: List<CollectionWrapper>? = null,
