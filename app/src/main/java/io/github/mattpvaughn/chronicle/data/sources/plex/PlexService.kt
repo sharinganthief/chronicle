@@ -48,6 +48,11 @@ interface PlexMediaService {
         @Path("libraryId") libraryId: String
     ): PlexMediaContainerWrapper
 
+    @GET("/library/sections/{libraryId}/all?type=$MEDIA_TYPE_MOVIE")
+    suspend fun retrieveAllMovies(
+        @Path("libraryId") libraryId: String
+    ): PlexMediaContainerWrapper
+
     @GET("/library/sections/{libraryId}/all?type=$MEDIA_TYPE_ALBUM")
     suspend fun retrieveAlbumPage(
         @Path("libraryId") libraryId: String,
@@ -57,6 +62,13 @@ interface PlexMediaService {
 
     @GET("/library/sections/{libraryId}/all?type=$MEDIA_TYPE_SHOW")
     suspend fun retrieveShowPage(
+        @Path("libraryId") libraryId: String,
+        @Query("X-Plex-Container-Start") containerStart: Int = 0,
+        @Query("X-Plex-Container-Size") containerSize: Int = 100,
+    ): PlexMediaContainerWrapper
+
+    @GET("/library/sections/{libraryId}/all?type=$MEDIA_TYPE_MOVIE")
+    suspend fun retrieveMoviePage(
         @Path("libraryId") libraryId: String,
         @Query("X-Plex-Container-Start") containerStart: Int = 0,
         @Query("X-Plex-Container-Size") containerSize: Int = 100,
@@ -76,6 +88,9 @@ interface PlexMediaService {
 
     @GET("/library/metadata/{albumId}/children")
     suspend fun retrieveTracksForAlbum(@Path("albumId") albumId: Int): PlexMediaContainerWrapper
+
+    @GET("/library/metadata/{movieId}")
+    suspend fun retrieveTracksForMovie(@Path("movieId") movieId: Int): PlexMediaContainerWrapper
 
     @GET("/library/sections")
     suspend fun retrieveLibraries(): PlexMediaContainerWrapper

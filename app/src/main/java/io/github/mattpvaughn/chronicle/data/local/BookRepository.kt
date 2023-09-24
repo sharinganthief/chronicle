@@ -1,21 +1,15 @@
 package io.github.mattpvaughn.chronicle.data.local
 
-import androidx.core.content.pm.ShortcutInfoCompat
-import androidx.core.graphics.drawable.IconCompat
 import androidx.lifecycle.LiveData
-import androidx.lifecycle.map
 import io.github.mattpvaughn.chronicle.BuildConfig
 import io.github.mattpvaughn.chronicle.data.model.*
 import io.github.mattpvaughn.chronicle.data.sources.MediaSource
 import io.github.mattpvaughn.chronicle.data.sources.plex.PlexMediaService
 import io.github.mattpvaughn.chronicle.data.sources.plex.PlexPrefsRepo
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.asAudiobooks
-import io.github.mattpvaughn.chronicle.data.sources.plex.model.asTrackList
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.getDuration
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.toChapter
-import io.github.mattpvaughn.chronicle.features.player.displaySubtitle
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
@@ -178,7 +172,12 @@ class BookRepository @Inject constructor(
         prefsRepo.lastRefreshTimeStamp = System.currentTimeMillis()
         val networkBooks: List<Audiobook> = withContext(Dispatchers.IO) {
             try {
-                plexMediaService.retrieveAllAlbums(plexPrefsRepo.library!!.id).plexMediaContainer.asAudiobooks()
+                when(plexPrefsRepo.library?.type) {
+                    MediaType.ARTIST -> plexMediaService.retrieveAllAlbums(plexPrefsRepo.library!!.id).plexMediaContainer.asAudiobooks()
+                    MediaType.SHOW -> plexMediaService.retrieveAllShows(plexPrefsRepo.library!!.id).plexMediaContainer.asAudiobooks()
+                    MediaType.MOVIE -> plexMediaService.retrieveAllMovies(plexPrefsRepo.library!!.id).plexMediaContainer.asAudiobooks()
+                    else -> throw Throwable("Unsupported library type")
+                }
             } catch (t: Throwable) {
                 Timber.i("Failed to retrieve books: $t")
                 null
@@ -241,9 +240,19 @@ class BookRepository @Inject constructor(
                 val maxIterations = 5000
                 var i = 0
                 while (booksLeft > 0 && i < maxIterations) {
-                    val response = plexMediaService
-                        .retrieveAlbumPage(libraryId, i * 100)
-                        .plexMediaContainer
+                    val response = when(plexPrefsRepo.library?.type) {
+                        MediaType.ARTIST -> plexMediaService
+                            .retrieveAlbumPage(libraryId, i * 100)
+                            .plexMediaContainer
+                        MediaType.SHOW -> plexMediaService
+                            .retrieveShowPage(libraryId, i * 100)
+                            .plexMediaContainer
+                        MediaType.MOVIE -> plexMediaService
+                            .retrieveMoviePage(libraryId, i * 100)
+                            .plexMediaContainer
+                        else -> throw Throwable("Unsupported library type")
+                    }
+
                     booksLeft = response.totalSize - (response.offset + response.size)
                     networkBooks.addAll(response.asAudiobooks())
                     i++
@@ -434,8 +443,15 @@ class BookRepository @Inject constructor(
                                     tracks: List<MediaItemTrack>): List<Chapter>{
         val chapters: List<Chapter> =
             tracks.flatMap { track ->
-                val networkChapters = plexMediaService.retrieveChapterInfo(track.id)
-                    .plexMediaContainer.metadata.firstOrNull()?.plexChapters
+
+                val networkChapters =
+                    when(plexPrefsRepo.library?.type) {
+                        MediaType.ARTIST, MediaType.MOVIE -> plexMediaService.retrieveChapterInfo(track.id)
+                            .plexMediaContainer.metadata.firstOrNull()?.plexChapters
+                        MediaType.SHOW -> null
+                        else -> throw Throwable("Unsupported library type")
+                    }
+
                 if (BuildConfig.DEBUG) {
                     // prevent networkChapters from toString()ing and being slow even if timber
                     // tree isn't attached in the release build

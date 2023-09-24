@@ -117,6 +117,14 @@ data class MediaItemTrack(
 //                baseTrack.album = networkTrack.parentTitle + " - " + networkTrack.title
 //            }
 
+            if(networkTrack.type == "movie") {
+                baseTrack.album = networkTrack.title
+                baseTrack.discNumber = 1
+                baseTrack.index = 1
+                baseTrack.parentKey = networkTrack.ratingKey.toInt()
+            }
+
+
             if(networkTrack.type == "episode"){
 //                val baseIndex = networkTrack.index;
                 baseTrack.album = networkTrack.parentTitle

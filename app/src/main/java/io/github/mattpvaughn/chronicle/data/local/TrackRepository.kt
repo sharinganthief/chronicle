@@ -186,9 +186,17 @@ class TrackRepository @Inject constructor(
     override suspend fun fetchNetworkTracksForBook(bookId: Int): List<MediaItemTrack> {
 
         val baseTracks = withContext(Dispatchers.IO) {
-            plexMediaService.retrieveTracksForAlbum(bookId)
-                .plexMediaContainer
-                .asTrackList()
+
+            when(plexPrefsRepo.library?.type) {
+                MediaType.ARTIST, MediaType.SHOW -> plexMediaService.retrieveTracksForAlbum(bookId)
+                    .plexMediaContainer
+                    .asTrackList()
+                MediaType.MOVIE -> plexMediaService.retrieveTracksForMovie(bookId)
+                    .plexMediaContainer
+                    .asTrackList()
+                else -> throw Throwable("Unsupported library type")
+            }
+
         }
         var networkTracks = baseTracks
         if (plexPrefsRepo.library?.type == MediaType.SHOW){
@@ -204,6 +212,18 @@ class TrackRepository @Inject constructor(
                 it.parentKey = bookId
             }
         }
+//        if (plexPrefsRepo.library?.type == MediaType.MOVIE){
+//            //use "tracks" which are seasons to get the real tracks, episodes
+//            networkTracks = baseTracks
+//                .flatMap {
+//                    plexMediaService.retrieveTracksForAlbum(it.id)
+//                        .plexMediaContainer
+//                        .asTrackList()  }
+//            networkTracks
+//                .map{
+//                    it.parentKey = bookId
+//                }
+//        }
         return withContext(Dispatchers.IO) {
             return@withContext networkTracks
         }
