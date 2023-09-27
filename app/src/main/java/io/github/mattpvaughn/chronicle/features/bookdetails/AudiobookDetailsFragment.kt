@@ -19,7 +19,6 @@ import io.github.mattpvaughn.chronicle.data.model.Chapter
 import io.github.mattpvaughn.chronicle.data.sources.MediaSource
 import io.github.mattpvaughn.chronicle.data.sources.plex.PlexConfig
 import io.github.mattpvaughn.chronicle.databinding.FragmentAudiobookDetailsBinding
-import io.github.mattpvaughn.chronicle.features.currentlyplaying.CurrentlyPlaying
 import io.github.mattpvaughn.chronicle.features.player.MediaServiceConnection
 import io.github.mattpvaughn.chronicle.navigation.Navigator
 import io.github.mattpvaughn.chronicle.util.observeEvent
@@ -52,9 +51,6 @@ class AudiobookDetailsFragment : Fragment() {
 
     @Inject
     lateinit var plexConfig: PlexConfig
-
-    @Inject
-    lateinit var currentlyPlaying: CurrentlyPlaying
 
     @Inject
     lateinit var mediaServiceConnection: MediaServiceConnection

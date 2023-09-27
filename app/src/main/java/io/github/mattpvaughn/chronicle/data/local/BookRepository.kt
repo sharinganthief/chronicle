@@ -6,6 +6,7 @@ import io.github.mattpvaughn.chronicle.data.model.*
 import io.github.mattpvaughn.chronicle.data.sources.MediaSource
 import io.github.mattpvaughn.chronicle.data.sources.plex.PlexMediaService
 import io.github.mattpvaughn.chronicle.data.sources.plex.PlexPrefsRepo
+import io.github.mattpvaughn.chronicle.data.sources.plex.model.MediaType
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.asAudiobooks
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.getDuration
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.toChapter
@@ -333,9 +334,7 @@ class BookRepository @Inject constructor(
     }
 
     override fun getRecentlyListened(): LiveData<List<Audiobook>> {
-        val recentlyListened = bookDao.getRecentlyListened(limitReturnCount, prefsRepo.offlineMode)
-
-        return recentlyListened;
+        return bookDao.getRecentlyListened(limitReturnCount, prefsRepo.offlineMode)
     }
 
     override suspend fun getRecentlyListenedAsync(): List<Audiobook> {

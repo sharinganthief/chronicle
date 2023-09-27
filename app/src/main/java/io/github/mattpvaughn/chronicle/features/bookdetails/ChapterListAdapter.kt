@@ -23,7 +23,7 @@ import io.github.mattpvaughn.chronicle.util.DoubleLiveData
 import timber.log.Timber
 
 
-class ChapterListAdapter(val cacheListener: TrackClickListener, val clickListener: TrackClickListener, val headerClickListener: HeaderClickListener) :
+class ChapterListAdapter(val clickListener: TrackClickListener, val headerClickListener: HeaderClickListener) :
     ListAdapter<ChapterListAdapter.ChapterListModel, RecyclerView.ViewHolder>(
         ChapterItemDiffCallback()
     ) {
@@ -206,7 +206,7 @@ class ChapterListAdapter(val cacheListener: TrackClickListener, val clickListene
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         return when (viewType) {
-            ChapterListModel.CHAPTER_TYPE -> ChapterViewHolder.from(parent, clickListener, cacheListener)
+            ChapterListModel.CHAPTER_TYPE -> ChapterViewHolder.from(parent, clickListener)
             ChapterListModel.SECTION_HEADER_TYPE -> SectionHeaderViewHolder.from(parent, headerClickListener)
             else -> throw NoWhenBranchMatchedException()
         }
@@ -272,8 +272,7 @@ class ChapterListAdapter(val cacheListener: TrackClickListener, val clickListene
 
     class ChapterViewHolder private constructor(
         private val binding: ListItemAudiobookTrackBinding,
-        private val clickListener: TrackClickListener,
-        private val cacheListener: TrackClickListener
+        private val clickListener: TrackClickListener
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(chapter: Chapter, isActive: Boolean, isVisible: Boolean) {
             binding.chapter = chapter
@@ -285,10 +284,10 @@ class ChapterListAdapter(val cacheListener: TrackClickListener, val clickListene
         }
 
         companion object {
-            fun from(parent: ViewGroup, clickListener: TrackClickListener, cacheListener: TrackClickListener): ChapterViewHolder {
+            fun from(parent: ViewGroup, clickListener: TrackClickListener): ChapterViewHolder {
                 val layoutInflater = LayoutInflater.from(parent.context)
                 val binding = ListItemAudiobookTrackBinding.inflate(layoutInflater, parent, false)
-                return ChapterViewHolder(binding, clickListener, cacheListener)
+                return ChapterViewHolder(binding, clickListener)
             }
         }
     }

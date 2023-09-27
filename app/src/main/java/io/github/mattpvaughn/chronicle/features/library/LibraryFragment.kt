@@ -32,7 +32,6 @@ import io.github.mattpvaughn.chronicle.databinding.FragmentLibraryBinding
 import io.github.mattpvaughn.chronicle.navigation.Navigator
 import io.github.mattpvaughn.chronicle.views.checkRadioButtonWithTag
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -109,7 +108,6 @@ class LibraryFragment : Fragment() {
             //
             // This operation is worst case O(n), which is bad for users with huge libraries
             lifecycleScope.launch {
-
                 val isNewList = withContext(Dispatchers.IO) {
                     val currentList = adapter?.currentList ?: return@withContext true
                     if (books.size != currentList.size) {

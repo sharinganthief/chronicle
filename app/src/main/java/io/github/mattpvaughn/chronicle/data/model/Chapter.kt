@@ -31,7 +31,7 @@ data class Chapter constructor(
     val startTimeOffset: Long = 0L,
     // The number of milliseconds between the start of the containing track and the end of the chapter
     val endTimeOffset: Long = 0L,
-    var downloaded: Boolean = false,
+    val downloaded: Boolean = false,
     val trackId: Long = TRACK_NOT_FOUND.toLong(),
     val bookId: Long = NO_AUDIOBOOK_FOUND_ID.toLong()
 ) : Comparable<Chapter> {

@@ -12,10 +12,9 @@ import androidx.lifecycle.Observer
 import com.github.michaelbull.result.Ok
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.Player
-import com.google.android.exoplayer2.SimpleExoPlayer
 import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector
-import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory
-import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory
+import com.google.android.exoplayer2.upstream.DefaultDataSource
+import com.google.android.exoplayer2.upstream.DefaultHttpDataSource
 import io.github.mattpvaughn.chronicle.BuildConfig
 import io.github.mattpvaughn.chronicle.application.Injector
 import io.github.mattpvaughn.chronicle.application.MILLIS_PER_SECOND
@@ -26,8 +25,6 @@ import io.github.mattpvaughn.chronicle.data.model.*
 import io.github.mattpvaughn.chronicle.data.sources.plex.PlexConfig
 import io.github.mattpvaughn.chronicle.data.sources.plex.PlexPrefsRepo
 import io.github.mattpvaughn.chronicle.data.sources.plex.getMediaItemUri
-import io.github.mattpvaughn.chronicle.data.sources.plex.model.MediaType
-import io.github.mattpvaughn.chronicle.data.sources.plex.model.asTrackList
 import io.github.mattpvaughn.chronicle.data.sources.plex.model.getDuration
 import io.github.mattpvaughn.chronicle.features.currentlyplaying.CurrentlyPlaying
 import io.github.mattpvaughn.chronicle.features.player.MediaPlayerService.Companion.ACTIVE_TRACK
@@ -46,7 +43,7 @@ class AudiobookMediaSessionCallback @Inject constructor(
     private val prefsRepo: PrefsRepo,
     private val plexConfig: PlexConfig,
     private val mediaController: MediaControllerCompat,
-    private val dataSourceFactory: DefaultHttpDataSourceFactory,
+    private val dataSourceFactory: DefaultHttpDataSource.Factory,
     private val trackRepository: ITrackRepository,
     private val bookRepository: IBookRepository,
     private val serviceScope: CoroutineScope,
@@ -58,7 +55,7 @@ class AudiobookMediaSessionCallback @Inject constructor(
     private val appContext: Context,
     private val currentlyPlaying: CurrentlyPlaying,
     private val progressUpdater: ProgressUpdater,
-    defaultPlayer: SimpleExoPlayer
+    defaultPlayer: ExoPlayer
 ) : MediaSessionCompat.Callback() {
 
     // Default to ExoPlayer to prevent having a nullable field
@@ -255,15 +252,14 @@ class AudiobookMediaSessionCallback @Inject constructor(
         }
         serviceScope.launch {
             val tracks = withContext(Dispatchers.IO) {
-                trackRepository.fetchNetworkTracksForBook(bookId.toInt())
+                trackRepository.getTracksForAudiobookAsync(bookId.toInt())
             }
-
             if (tracks.isNullOrEmpty()) {
                 handlePlayBookWithNoTracks(bookId, tracks, extras, playWhenReady)
                 return@launch
             }
 
-//            Timber.i("Tracks: $tracks")
+            Timber.i("Tracks: $tracks")
 
             trackListStateManager.trackList = tracks
             val metadataList = buildPlaylist(tracks, plexConfig)
@@ -308,14 +304,16 @@ class AudiobookMediaSessionCallback @Inject constructor(
 
             // Refresh auth token in [dataSourceFactory] in case the server has changed without
             // the service being recreated
-            val props = dataSourceFactory.defaultRequestProperties
-            props.set(
-                "X-Plex-Token",
-                plexPrefsRepo.server?.accessToken
-                    ?: plexPrefsRepo.user?.authToken
-                    ?: plexPrefsRepo.accountAuthToken
+            dataSourceFactory.setDefaultRequestProperties(
+                mapOf(
+                    "X-Plex-Token" to (
+                        plexPrefsRepo.server?.accessToken
+                            ?: plexPrefsRepo.user?.authToken
+                            ?: plexPrefsRepo.accountAuthToken
+                        )
+                )
             )
-            val factory = DefaultDataSourceFactory(appContext, dataSourceFactory)
+            val factory = DefaultDataSource.Factory(appContext, dataSourceFactory)
             when (player) {
                 is ExoPlayer -> {
                     val mediaSource = metadataList.toMediaSource(plexPrefsRepo, factory)

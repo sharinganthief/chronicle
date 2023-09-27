@@ -132,8 +132,8 @@ interface ITrackRepository {
 class TrackRepository @Inject constructor(
     private val trackDao: TrackDao,
     private val prefsRepo: PrefsRepo,
-    private val plexPrefsRepo: PlexPrefsRepo,
     private val plexMediaService: PlexMediaService,
+    private val plexPrefs: PlexPrefsRepo
 ) : ITrackRepository {
 
     @Throws(Throwable::class)
@@ -152,7 +152,7 @@ class TrackRepository @Inject constructor(
         val networkTracks = mutableListOf<MediaItemTrack>()
         withContext(Dispatchers.IO) {
             try {
-                val libraryId = plexPrefsRepo.library?.id ?: return@withContext
+                val libraryId = plexPrefs.library?.id ?: return@withContext
                 var tracksLeft = 1L
                 // Maximum number of pages of data we fetch. Failsafe in case of bad data from the
                 // server since we don't want infinite loops. This limits us to a maximum 1,000,000
@@ -187,7 +187,7 @@ class TrackRepository @Inject constructor(
 
         val baseTracks = withContext(Dispatchers.IO) {
 
-            when(plexPrefsRepo.library?.type) {
+            when(plexPrefs.library?.type) {
                 MediaType.ARTIST, MediaType.SHOW -> plexMediaService.retrieveTracksForAlbum(bookId)
                     .plexMediaContainer
                     .asTrackList()
@@ -199,7 +199,7 @@ class TrackRepository @Inject constructor(
 
         }
         var networkTracks = baseTracks
-        if (plexPrefsRepo.library?.type == MediaType.SHOW){
+        if (plexPrefs.library?.type == MediaType.SHOW){
             //use "tracks" which are seasons to get the real tracks, episodes
             networkTracks = baseTracks
                 .filter { !it.title.lowercase().contains("specials") }
