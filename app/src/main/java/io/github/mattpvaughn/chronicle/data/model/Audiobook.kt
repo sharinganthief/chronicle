@@ -54,7 +54,7 @@ data class Audiobook constructor(
     /** The number of times the book has been listened to */
     val viewCount: Long = 0L,
     /** Chapter metadata corresponding to m4b chapter metadata in the m4b files */
-    val chapters: List<Chapter> = emptyList(),
+    var chapters: List<Chapter> = emptyList(),
 ) {
 
     companion object {

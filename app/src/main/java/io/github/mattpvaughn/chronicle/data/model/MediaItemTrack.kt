@@ -130,14 +130,14 @@ data class MediaItemTrack(
 
 
             if(networkTrack.type == "episode"){
-//                val baseIndex = networkTrack.index;
-                baseTrack.album = networkTrack.parentTitle
-//                baseTrack.title = networkTrack.grandparentTitle + " - " +
-//                                  "S" + networkTrack.parentIndex.toString().padStart(2,'0') +
-//                                  "E" +  baseIndex.toString().padStart(2,'0') +  " - " +
-//                                  networkTrack.title
-                baseTrack.discNumber = networkTrack.parentIndex
-                //baseTrack.index = 1
+                val baseIndex = networkTrack.index;
+                baseTrack.album = networkTrack.grandparentTitle
+                baseTrack.title = networkTrack.grandparentTitle + " - " +
+                                  "S" + networkTrack.parentIndex.toString().padStart(2,'0') +
+                                  "E" +  baseIndex.toString().padStart(2,'0') +  " - " +
+                                  networkTrack.title
+                baseTrack.discNumber = (networkTrack.parentIndex * 1000) + networkTrack.index
+                baseTrack.index = 1
             }
 
             return baseTrack;

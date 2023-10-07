@@ -169,9 +169,9 @@ class ChapterListAdapter(val clickListener: TrackClickListener, val headerClickL
 
 //            var seriesName = showResult!!.groupValues[1]
             var seasonNum = showResult!!.groupValues[2]
-//            var episodeNum = showResult!!.groupValues[3]
-//            var episodeTitle = showResult!!.groupValues[4]
-            return Quadruple(true, "Season $seasonNum", null, null)
+            var episodeNum = showResult!!.groupValues[3]
+            var episodeTitle = showResult!!.groupValues[4]
+            return Quadruple(true, "S${seasonNum}E${episodeNum} - $episodeTitle", null, null)
 
         }
 

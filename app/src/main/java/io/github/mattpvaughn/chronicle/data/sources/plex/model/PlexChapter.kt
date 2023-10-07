@@ -5,9 +5,9 @@ import io.github.mattpvaughn.chronicle.data.model.Chapter
 
 @JsonClass(generateAdapter = true)
 data class PlexChapter(
-    val id: Long = 0L,
+    var id: Long = 0L,
     val filter: String = "",
-    val tag: String = "",
+    var tag: String = "",
     val index: Long = 0L,
     val discNumber: Int = 0,
     val startTimeOffset: Long = 0L,

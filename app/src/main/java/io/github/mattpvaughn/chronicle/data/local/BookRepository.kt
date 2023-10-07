@@ -445,9 +445,8 @@ class BookRepository @Inject constructor(
 
                 val networkChapters =
                     when(plexPrefsRepo.library?.type) {
-                        MediaType.ARTIST, MediaType.MOVIE -> plexMediaService.retrieveChapterInfo(track.id)
+                        MediaType.ARTIST, MediaType.MOVIE, MediaType.SHOW -> plexMediaService.retrieveChapterInfo(track.id)
                             .plexMediaContainer.metadata.firstOrNull()?.plexChapters
-                        MediaType.SHOW -> null
                         else -> throw Throwable("Unsupported library type")
                     }
 
@@ -456,6 +455,15 @@ class BookRepository @Inject constructor(
                     // tree isn't attached in the release build
                     Timber.i("Network chapters: $networkChapters")
                 }
+
+                when(plexPrefsRepo.library?.type) {
+                    MediaType.SHOW ->
+                        networkChapters?.map{
+                            it.id = track.discNumber + it.index
+                            if(it.index == 1L)
+                                it.tag = track.title }
+                }
+
                 // If no chapters for this track, make a chapter from the current track
                 networkChapters?.map { plexChapter ->
                     plexChapter.toChapter(
@@ -463,6 +471,7 @@ class BookRepository @Inject constructor(
                         track.discNumber,
                         audiobook.isCached
                     )
+
                 }.takeIf { !it.isNullOrEmpty() } ?: listOf(track.asChapter(0L))
             }.sorted()
 
