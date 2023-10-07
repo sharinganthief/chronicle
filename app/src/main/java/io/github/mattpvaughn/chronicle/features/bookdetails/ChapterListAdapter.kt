@@ -155,7 +155,7 @@ class ChapterListAdapter(val clickListener: TrackClickListener, val headerClickL
         return "${parsed.third!!} - ${parsed.fourth!!}"
     }
 
-    private val bookRegex = Regex("(.*?)\\s\\-\\sBooks?\\s([\\d|\\.|\\-|\\s]*)\\s\\-\\s(.*)")
+    private val bookRegex = Regex("(.*?)\\s\\-\\sBooks?\\s([\\d|\\.|․|\\-|\\s]*)\\s\\-\\s(.*)")
     private val showRegex = Regex("(.*)\\s\\-\\sS(\\d+)E(\\d+)\\s\\-\\s(.*)")
 
     private fun parseDiscName(title: String): Quadruple<Boolean,String?, String?, String?> {

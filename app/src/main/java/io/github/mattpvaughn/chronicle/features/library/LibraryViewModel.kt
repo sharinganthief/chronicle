@@ -137,7 +137,7 @@ class LibraryViewModel(
         val groupBySeries = _groupBySeries ?: false
         val offline = _isOffline ?: false
 
-        val regex = Regex("(.*?)\\s\\-\\s(Books?\\s[\\d|\\.]*)\\s?\\-\\s?(.*)");
+        val regex = Regex("(.*?)\\s\\-\\s(Books?\\s[\\d|\\.|․]*)\\s?\\-\\s?(.*)");
 
         var filteredResults: MutableList<Audiobook> = mutableListOf();
 

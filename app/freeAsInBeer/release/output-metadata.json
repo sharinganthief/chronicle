@@ -11,8 +11,8 @@
       "type": "SINGLE",
       "filters": [],
       "attributes": [],
-      "versionCode": 24,
-      "versionName": "0.52.1",
+      "versionCode": 26,
+      "versionName": "0.54.0",
       "outputFile": "app-freeAsInBeer-release.apk"
     }
   ],

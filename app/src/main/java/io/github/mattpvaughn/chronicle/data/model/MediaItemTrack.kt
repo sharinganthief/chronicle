@@ -95,12 +95,17 @@ data class MediaItemTrack(
 
         /** Create a [MediaItemTrack] from a Plex model and an index */
         fun fromPlexModel(networkTrack: PlexDirectory): MediaItemTrack {
+
+            val allSearchTerms = networkTrack.plexGenres.map { it.tag }
+            val combinedGenre = allSearchTerms.distinct().joinToString("|" )
+
             var baseTrack = MediaItemTrack(
                 id = networkTrack.ratingKey.toInt(),
                 parentKey = networkTrack.parentRatingKey,
                 parentTitle = networkTrack.parentTitle,
                 title = networkTrack.title,
                 artist = networkTrack.grandparentTitle,
+                genre = combinedGenre,
                 thumb = networkTrack.thumb,
                 index = networkTrack.index,
                 discNumber = networkTrack.parentIndex,
@@ -112,7 +117,6 @@ data class MediaItemTrack(
                 media = if (networkTrack.media.isNotEmpty() && networkTrack.media[0].part.isNotEmpty()) networkTrack.media[0].part[0].key else "",
                 size = if (networkTrack.media.isNotEmpty() && networkTrack.media[0].part.isNotEmpty()) networkTrack.media[0].part[0].size else -1,
             )
-
 //            if(networkTrack.type == "show"){
 //                baseTrack.album = networkTrack.parentTitle + " - " + networkTrack.title
 //            }

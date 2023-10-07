@@ -58,34 +58,38 @@ data class Audiobook constructor(
 ) {
 
     companion object {
-        fun from(dir: PlexDirectory) = Audiobook(
-            id = dir.ratingKey.toInt(),
-            source = PlexMediaSource.MEDIA_SOURCE_ID_PLEX,
-            title = dir.title,
-            titleDisplay = dir.title,
-            subTitle = "",
-            titleSearch = getTitleSearch(dir.title, dir.parentTitle),
-            titleSort = dir.titleSort.takeIf { it.isNotEmpty() } ?: dir.title,
-            author = dir.parentTitle,
-            thumb = dir.thumb,
-            parentId = dir.parentRatingKey,
-            genre = dir.plexGenres.joinToString(separator = ", "),
-            summary = dir.summary,
-            year = dir.year.takeIf { it != 0 } ?: dir.parentYear,
-            addedAt = dir.addedAt,
-            updatedAt = dir.updatedAt,
-            lastViewedAt = dir.lastViewedAt,
-            viewedLeafCount = dir.viewedLeafCount,
-            leafCount = dir.leafCount,
-            viewCount = dir.viewCount,
-        )
+        fun from(dir: PlexDirectory) : Audiobook {
+            val collections = dir.collections?.map{ it.tag}?.joinToString(separator = " ")
 
-        private fun getTitleSearch(bookTitle: String, author: String): String {
-            return ("$bookTitle $author").replace("[^A-Za-z0-9 ]".toRegex(), "").lowercase();
+            return Audiobook(
+                id = dir.ratingKey.toInt(),
+                source = PlexMediaSource.MEDIA_SOURCE_ID_PLEX,
+                title = dir.title,
+                titleDisplay = dir.title,
+                subTitle = "",
+                titleSearch = getTitleSearch(dir.title, dir.parentTitle, collections),
+                titleSort = dir.titleSort.takeIf { it.isNotEmpty() } ?: dir.title,
+                author = dir.parentTitle,
+                thumb = dir.thumb,
+                parentId = dir.parentRatingKey,
+                genre = dir.plexGenres.joinToString(separator = ", "),
+                summary = dir.summary,
+                year = dir.year.takeIf { it != 0 } ?: dir.parentYear,
+                addedAt = dir.addedAt,
+                updatedAt = dir.updatedAt,
+                lastViewedAt = dir.lastViewedAt,
+                viewedLeafCount = dir.viewedLeafCount,
+                leafCount = dir.leafCount,
+                viewCount = dir.viewCount,
+            )
+        }
+
+        private fun getTitleSearch(bookTitle: String, author: String, collections: String?): String {
+            return ("$bookTitle $author $collections").replace("[^A-Za-z0-9 ]".toRegex(), "").lowercase().trim();
         }
 
         private fun getDisplayTitle(bookTitle: String): String {
-            val regex = Regex("(.*?)\\s\\-\\s(Books?\\s[\\d|\\.|\\-|\\s]*)\\s\\-\\s(.*)");
+            val regex = Regex("(.*?)\\s\\-\\s(Books?\\s[\\d|\\.|․|\\-|\\s]*)\\s\\-\\s(.*)");
             var matchResult = regex.find(bookTitle);
             if (matchResult == null || matchResult!!.groupValues.size <= 1) {
                 return bookTitle
@@ -166,7 +170,7 @@ data class Audiobook constructor(
                     val titles: List<String> = discs.map { it.third.lowercase() }
 //                    val nums: List<String> = discs.map { it.second }
 
-                    val allSearchTerms = mutableListOf(finalBook.title.lowercase(), finalBook.author.lowercase())
+                    val allSearchTerms = mutableListOf(finalBook.titleSearch)
                     allSearchTerms.addAll(titles);
                     val uniqueSearchTerms = allSearchTerms.distinct()
 
@@ -179,8 +183,7 @@ data class Audiobook constructor(
             return finalBook;
         }
 
-
-        private val regex = Regex("(.*?)\\s\\-\\sBooks?\\s([\\d|\\.|\\-|\\s]*)\\s\\-\\s(.*)")
+        private val regex = Regex("(.*?)\\s\\-\\sBooks?\\s([\\d|\\.|․|\\-|\\s]*)\\s\\-\\s(.*)")
 
         private fun parseDiscName(title: String): Triple<String, String,String> {
 
